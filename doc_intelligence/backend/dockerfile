@@ -1,0 +1,41 @@
+FROM python:3.13-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv (pinned version recommended)
+RUN curl -LsSf https://astral.sh/uv/install.sh | UV_VERSION=0.4.10 sh
+
+# Add uv to PATH
+ENV PATH="/root/.local/bin:${PATH}"
+
+# Set HOME inside the container
+ENV HOME=/app
+
+# Create cache directory
+RUN mkdir -p /app/.cache/uv
+
+# Set work directory
+WORKDIR /app
+
+# Copy project metadata first (better caching)
+COPY pyproject.toml .
+COPY uv.lock .
+
+# Install dependencies into the image
+RUN uv sync --frozen
+
+# Copy the rest of the application code
+COPY src ./src
+
+# Set PYTHONPATH so bare imports like `from models.` resolve correctly
+ENV PYTHONPATH=/app/src
+
+# Expose FastAPI port
+EXPOSE 8000
+
+# Entry point is just `app:app` since PYTHONPATH points to src/
+CMD ["uv", "run", "uvicorn", "src.app:app", "--host", "0.0.0.0", "--port", "8000"]

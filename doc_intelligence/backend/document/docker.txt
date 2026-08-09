@@ -1,0 +1,105 @@
+========================================
+DOCKER COMPOSE — CORE COMMANDS
+========================================
+
+# Start all services (build if needed)
+docker compose up
+
+# Start in detached mode
+docker compose up -d
+
+# Rebuild images and start fresh
+docker compose up --build
+
+# Stop all running services
+docker compose down
+
+# Stop and remove containers + networks + volumes
+docker compose down -v
+
+# View logs for all services
+docker compose logs
+
+# Follow logs in real time
+docker compose logs -f
+
+# View logs for a specific service
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f db
+
+# Restart a single service
+docker compose restart backend
+docker compose restart frontend
+
+========================================
+CONTAINER MANAGEMENT
+========================================
+
+# List all running containers
+docker ps
+
+# List all containers (including stopped)
+docker ps -a
+
+# Stop a container
+docker stop <container_name>
+
+# Start a container
+docker start <container_name>
+
+# Remove a container
+docker rm <container_name>
+
+# Remove a running container (force)
+docker rm -f <container_name>
+
+========================================
+EXEC INTO CONTAINERS
+========================================
+
+# Open a shell inside a container
+docker exec -it <container_name> bash
+
+# Example:
+docker exec -it backend bash
+docker exec -it db bash
+
+========================================
+IMAGE MANAGEMENT
+========================================
+
+# List images
+docker images
+
+# Remove an image
+docker rmi <image_id>
+
+# Remove dangling images
+docker image prune
+
+# Remove ALL unused images
+docker image prune -a
+
+========================================
+VOLUME MANAGEMENT
+========================================
+
+# List volumes
+docker volume ls
+
+# Inspect a volume
+docker volume inspect <volume_name>
+
+# Remove unused volumes
+docker volume prune
+
+========================================
+SYSTEM CLEANUP
+========================================
+
+# Remove stopped containers, unused networks, dangling images
+docker system prune
+
+# Remove EVERYTHING unused (careful)
+docker system prune -a

@@ -1,0 +1,131 @@
+========================================
+POSTGRES SQL + PSQL COMMANDS CHEAT SHEET
+========================================
+
+
+ENTER POSTGRES (Docker)
+----------------------------------------
+docker exec -it <container_name> psql -U postgres -d <database_name>
+
+use:
+docker exec -it DocIntelligenceDB_Postgres psql -U postgres -d DocIntelligenceDB
+
+
+EXIT POSTGRES
+----------------------------------------
+\q
+
+
+LIST ALL DATABASES
+----------------------------------------
+\l
+
+
+SWITCH DATABASE
+----------------------------------------
+\c database_name
+
+
+LIST ALL TABLES
+----------------------------------------
+\dt
+
+
+DESCRIBE TABLE STRUCTURE
+----------------------------------------
+\d table_name
+
+Example:
+\d users
+
+
+SHOW ALL ROWS IN A TABLE
+----------------------------------------
+SELECT * FROM table_name;
+
+
+SHOW SPECIFIC COLUMNS
+----------------------------------------
+SELECT id, username, email FROM users;
+
+
+FILTER ROWS
+----------------------------------------
+SELECT * FROM users WHERE username = 'azariah';
+
+
+COUNT ROWS
+----------------------------------------
+SELECT COUNT(*) FROM table_name;
+
+
+INSERT A ROW
+----------------------------------------
+INSERT INTO users (username, email, password_hash)
+VALUES ('testuser', 'test@example.com', 'hash123');
+
+
+UPDATE A ROW
+----------------------------------------
+UPDATE users
+SET email = 'new@example.com'
+WHERE username = 'testuser';
+
+
+DELETE A ROW
+----------------------------------------
+DELETE FROM users WHERE username = 'testuser';
+
+
+DELETE ALL ROWS (TRUNCATE)
+----------------------------------------
+TRUNCATE TABLE table_name RESTART IDENTITY;
+
+
+DROP A TABLE
+----------------------------------------
+DROP TABLE table_name;
+
+
+CHECK CURRENT USER
+----------------------------------------
+SELECT current_user;
+
+
+CHECK CURRENT DATABASE
+----------------------------------------
+SELECT current_database();
+
+
+SHOW ALL SCHEMAS
+----------------------------------------
+\dn
+
+
+SHOW ALL EXTENSIONS
+----------------------------------------
+\dx
+
+
+ENABLE EXTENSION
+----------------------------------------
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+
+RUN A SQL FILE
+----------------------------------------
+\i path/to/file.sql
+
+
+TURN OFF PAGER (so results don’t get stuck)
+----------------------------------------
+\pset pager off
+
+
+NOTES
+----------------------------------------
+• SQL commands must end with a semicolon (;)
+• PSQL commands start with a backslash (\)
+• Arrow keys navigate command history
+• Press 'q' to exit table viewer
+• Docker container must be running to access Postgres

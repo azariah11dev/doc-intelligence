@@ -1,0 +1,62 @@
+    
+[{
+    "role": "Admin",
+    "username": "alex_morgan",
+    "password": "K7v!qP2#xL9@",
+    "email": "alex.morgan@example.com"
+  },
+  {
+    "role": "user",
+    "username": "jordan_reed",
+    "password": "T4m$zR8!nQ2",
+    "email": "jordan.reed@example.com"
+  },
+  {
+    "role": "user",
+    "username": "casey_brooks",
+    "password": "N9@wF3#kV6p",
+    "email": "casey.brooks@example.com"
+  },
+  {
+    "role": "user",
+    "username": "taylor_hayes",
+    "password": "R2!xM7$qL5z",
+    "email": "taylor.hayes@example.com"
+  },
+  {
+    "role": "user",
+    "username": "morgan_blake",
+    "password": "Y8#pC4!sW1n",
+    "email": "morgan.blake@example.com"
+  },
+  {
+    "role": "user",
+    "username": "riley_carter",
+    "password": "H5$vN9@dK3x",
+    "email": "riley.carter@example.com"
+  },
+  {
+    "role": "user",
+    "username": "jamie_parker",
+    "password": "B6!qZ2#tM8r",
+    "email": "jamie.parker@example.com"
+  },
+  {
+    "role": "user",
+    "username": "drew_foster",
+    "password": "P3@kL7!vX4s",
+    "email": "drew.foster@example.com"
+  },
+  {
+    "role": "user",
+    "username": "sam_wilson",
+    "password": "C8#nR5$qJ2m",
+    "email": "sam.wilson@example.com"
+  },
+  {
+    "role": "user",
+    "username": "avery_turner",
+    "password": "V4!sK9@pD6y",
+    "email": "avery.turner@example.com"
+  }
+]

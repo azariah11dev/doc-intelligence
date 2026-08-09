@@ -1,0 +1,40 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+.env
+.env.*
+
+# Editor / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test + cache
+pytest_cache/
+.coverage
+htmlcov/
+
+# Build artifacts
+dist/
+build/
+
+# Logs
+*.log
+
+# Local data
+*.sqlite3
+*.db
+
+# uv cache
+.uv/
+
+# Anything not needed inside the container
+.git/
+.gitignore

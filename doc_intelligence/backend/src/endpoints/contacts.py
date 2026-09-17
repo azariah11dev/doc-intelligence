@@ -7,6 +7,9 @@ from services.model_dependencies.session_maker import get_async_session
 
 contact_router = APIRouter(prefix="/contact", tags=["contact"])
 
+# ---------------------------------------------------------------------------------------
+# POST
+#----------------------------------------------------------------------------------------
 @contact_router.post("/")
 async def contact(
     payload: ContactInfo,

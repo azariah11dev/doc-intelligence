@@ -42,7 +42,7 @@ export default function ContactPage() {
     <div
       className="min-h-screen flex flex-col"
       style={{
-        backgroundImage: "url('/contactPage.jpg')",
+        backgroundImage: "url('/contactsPage.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}

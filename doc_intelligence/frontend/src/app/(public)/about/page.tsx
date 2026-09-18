@@ -52,11 +52,11 @@ export default function AboutPage() {
           </h2>
 
           <ul className="space-y-4 text-gray-300 text-lg">
-            <li>• **Verified citations** for every answer</li>
-            <li>• **Semantic retrieval** that understands meaning, not keywords</li>
-            <li>• **Fast document processing** for PDFs, DOCX, TXT, and images</li>
-            <li>• **Clear, concise answers** grounded in your content</li>
-            <li>• **Privacy‑focused architecture** — your documents stay yours</li>
+            <li>• <span className="font-bold text-white">Verified citations</span> for every answer</li>
+            <li>• <span className="font-bold text-white">Semantic retrieval</span> that understands meaning, not keywords</li>
+            <li>• <span className="font-bold text-white">Fast document processing</span> for PDFs, DOCX, TXT, and images</li>
+            <li>• <span className="font-bold text-white">Clear, concise answers</span> grounded in your content</li>
+            <li>• <span className="font-bold text-white">Privacy-focused architecture</span> — your documents stay yours</li>
           </ul>
         </div>
       </section>

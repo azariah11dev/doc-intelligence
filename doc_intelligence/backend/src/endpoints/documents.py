@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
+from sqlalchemy import select
 import uuid
 import os
 import re
@@ -16,7 +17,51 @@ upload_router = APIRouter(prefix="/upload", tags=["upload"])
 # ---------------------------------------------------------------------------------------
 # GET
 #----------------------------------------------------------------------------------------
+@upload_router.get("/files")
+def get_files():
+    base_dir = os.path.join(os.path.dirname(__file__), "..", "models", "files")
 
+    if not os.path.exists(base_dir):
+        return {}
+
+    all_files = []
+    for root, _, files in os.walk(base_dir):
+        for f in files:
+            full_path = os.path.join(root, f)
+            if os.path.isfile(full_path):
+                all_files.append(full_path)
+
+    return {
+        "files": all_files,
+        "count": len(all_files)
+    }
+    
+@upload_router.get("/audit_trail")
+async def retrieve_files(session: AsyncSession = Depends(get_async_session)):
+    try:
+        result = select(Document).order_by(Document.upload_ts.desc())
+        rows = (await session.execute(result)).scalars().all()
+
+        return [
+            {
+                "id": row.id,
+                "upload_filename": row.upload_filename,
+                "saved_filename": row.saved_filename,
+                "file_type": row.file_type,
+                "file_size": row.file_size,
+                "action": row.action,
+                "upload_ts": row.upload_ts.strftime("%d-%m-%Y"),
+                "status": row.status,
+                "error": row.error
+            }
+            for row in rows
+        ]
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ---------------------------------------------------------------------------------------
 # POST
@@ -80,7 +125,7 @@ def get_versioned_path(
         "action": action
     }
 
-@upload_router.post("/")
+@upload_router.post("/documents")
 async def upload_document(
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_async_session),
@@ -153,6 +198,7 @@ async def upload_document(
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

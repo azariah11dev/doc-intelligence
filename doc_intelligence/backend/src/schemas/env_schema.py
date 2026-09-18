@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     OLLAMA_HOST: Optional[str] = None
 
     OPENAI_API_KEY: Optional[str] = None
-    GETSTREAM_API_KEY: Optional[str] = None
+    GEMINI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
 
     class Config:

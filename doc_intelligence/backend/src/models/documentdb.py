@@ -8,7 +8,9 @@ class Document(Base):
 
     id = Column(String, primary_key=True)
 
-    filename = Column(String)
+    upload_filename = Column(String)
+
+    saved_filename = Column(String)
 
     file_type = Column(String)
 
@@ -18,6 +20,8 @@ class Document(Base):
 
     upload_ts = Column(DateTime)
 
-    status = Column(Enum("UPLOADED", "PROCESSING", "READY", "FAILED"))
+    action = Column(String, nullable=True)
+
+    status = Column(Enum("UPLOADED", "SUCCESS", "FAILED"))
 
     error = Column(Text, nullable=True)

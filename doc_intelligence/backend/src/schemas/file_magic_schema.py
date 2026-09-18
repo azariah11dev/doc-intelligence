@@ -32,7 +32,3 @@ def validate_file_type(magic_type: str, filename: str):
 
     if magic_type not in ALLOWED_TYPES and guessed not in ALLOWED_TYPES:
         raise ValueError(f"Unsupported file type: {magic_type} / {guessed}")
-
-# ---------------------------------------------------------------------------------------
-# POST
-#----------------------------------------------------------------------------------------

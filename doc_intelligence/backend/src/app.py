@@ -5,15 +5,18 @@ from contextlib import asynccontextmanager
 
 from services.model_dependencies.database import create_db_and_tables
 
-from endpoints.user_auth import user_auth_router
 from endpoints.contacts import contact_router
+from endpoints.documents import upload_router
+from endpoints.response_generation import response_generation
+from endpoints.user_auth import user_auth_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_db_and_tables()
     yield
 
-app = FastAPI(title="Task Forge", version="1.0", lifespan=lifespan)
+app = FastAPI(title="Doc Intelligence", version="1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,5 +45,7 @@ def root():
         "message": "Welcome to Doc Intelligence API!"
     }
 
-app.include_router(user_auth_router)
 app.include_router(contact_router)
+app.include_router(upload_router)
+app.include_router(response_generation)
+app.include_router(user_auth_router)

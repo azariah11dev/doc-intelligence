@@ -3,12 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
-from services.model_dependencies.database import create_db_and_tables
+from src.services.model_dependencies.database import create_db_and_tables
 
-from endpoints.contacts import contact_router
-from endpoints.documents import upload_router
-from endpoints.response_generation import response_generation
-from endpoints.user_auth import user_auth_router
+from src.endpoints.contacts import contact_router
+from src.endpoints.documents import upload_router
+from src.endpoints.response_generation import response_generation
+from src.endpoints.user_auth import user_auth_router
 
 
 @asynccontextmanager

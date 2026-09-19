@@ -20,8 +20,8 @@ from qdrant_client.models import (
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.documentdb import Document
-from schemas.env_schema import settings
+from src.models.documentdb import Document
+from src.schemas.env_schema import settings
 from fastembed import SparseTextEmbedding
 
 qdrant_url = settings.QDRANT_URL or os.getenv("QDRANT_URL")

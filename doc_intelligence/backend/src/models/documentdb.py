@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, DateTime, Integer, Text, Enum
 
-from services.model_dependencies.database import Base
+from src.services.model_dependencies.database import Base
 
 class Document(Base):
     __tablename__ = "documents"
@@ -22,6 +22,6 @@ class Document(Base):
 
     action = Column(String, nullable=True)
 
-    status = Column(Enum("UPLOADED", "SUCCESS", "FAILED"))
+    status = Column(Enum("UPLOADED", "SUCCESS", "FAILED", name="status_enum"))
 
     error = Column(Text, nullable=True)

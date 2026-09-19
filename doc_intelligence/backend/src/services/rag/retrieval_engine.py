@@ -14,9 +14,9 @@ from qdrant_client.models import (
     SparseVector,
 )
 
-from services.rag.llm import GenerationModel
-from schemas.env_schema import settings
-from models.user_querydb import ChatHistory
+from src.services.rag.llm import GenerationModel
+from src.schemas.env_schema import settings
+from src.models.user_querydb import ChatHistory
 
 qdrant_url = settings.QDRANT_URL or os.getenv("QDRANT_URL")
 qdrant = QdrantClient(url=qdrant_url, check_compatibility=False)

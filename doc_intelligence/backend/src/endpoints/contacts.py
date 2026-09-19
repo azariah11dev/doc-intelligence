@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from schemas.contacts_schema import ContactInfo
-from models.contactsdb import ContactHistory
-from services.model_dependencies.session_maker import get_async_session
+from src.schemas.contacts_schema import ContactInfo
+from src.models.contactsdb import ContactHistory
+from src.services.model_dependencies.session_maker import get_async_session
 
 contact_router = APIRouter(prefix="/contact", tags=["contact"])
 

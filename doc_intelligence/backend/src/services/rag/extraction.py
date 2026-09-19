@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pdfminer.high_level import extract_pages
 from pdfminer.layout import LTTextBoxHorizontal, LTTextLineHorizontal, LTChar
 
-from models.documentdb import Document
-from services.rag.semantic_chunker import SemanticChunker
+from src.models.documentdb import Document
+from src.services.rag.semantic_chunker import SemanticChunker
 
 class DocumentExtractor:
     def __init__(

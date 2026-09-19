@@ -3,9 +3,9 @@ from fastapi.responses import StreamingResponse
 from typing import Iterator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.rag.retrieval_engine import queryRetrieval
-from schemas.response_gen import QueryRequest
-from services.model_dependencies.session_maker import get_async_session
+from src.services.rag.retrieval_engine import queryRetrieval
+from src.schemas.response_gen import QueryRequest
+from src.services.model_dependencies.session_maker import get_async_session
 
 response_generation = APIRouter(prefix="/response_generation", tags=["response_generation"])
 

@@ -1,7 +1,7 @@
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from services.model_dependencies.database import engine
+from src.services.model_dependencies.database import engine
 
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 

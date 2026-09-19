@@ -6,11 +6,11 @@ import uuid
 import os
 import re
 
-from schemas.file_magic_schema import detect_mime_type, validate_file_size, validate_file_type
-from models.documentdb import Document
-from services.model_dependencies.session_maker import get_async_session
-from services.rag.extraction import DocumentExtractor
-from services.rag.semantic_chunker import SemanticChunker
+from src.schemas.file_magic_schema import detect_mime_type, validate_file_size, validate_file_type
+from src.models.documentdb import Document
+from src.services.model_dependencies.session_maker import get_async_session
+from src.services.rag.extraction import DocumentExtractor
+from src.services.rag.semantic_chunker import SemanticChunker
 
 upload_router = APIRouter(prefix="/upload", tags=["upload"])
 

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from jose import jwt
 import os
 
-from schemas.env_schema import settings
+from src.schemas.env_schema import settings
 
 SECRET_KEY = settings.SECRET_KEY or os.getenv("SECRET_KEY")
 ALGORITHM = settings.ALGORITHM or os.getenv("ALGORITHM")

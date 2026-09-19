@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 import os
 
-from schemas.env_schema import settings
+from src.schemas.env_schema import settings
 
 
 def get_engine():
@@ -17,7 +17,7 @@ class Base(DeclarativeBase):
     pass
 
 async def create_db_and_tables():
-    from models.usersdb import Users
+    from src.models.usersdb import Users
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

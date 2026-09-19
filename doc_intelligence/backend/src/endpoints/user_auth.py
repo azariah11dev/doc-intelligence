@@ -3,11 +3,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
 
-from services.model_dependencies.session_maker import get_async_session
-from schemas.auth_schema import LoginRequest, RegisterRequest, UserResponse, RoleAssignmentRequest, UserDeletionRequest
-from models.usersdb import Users
-from services.auth.jwt_handler import create_access_token
-from services.auth.jwt_dependency import get_current_user
+from src.services.model_dependencies.session_maker import get_async_session
+from src.schemas.auth_schema import LoginRequest, RegisterRequest, UserResponse, RoleAssignmentRequest, UserDeletionRequest
+from src.models.usersdb import Users
+from src.services.auth.jwt_handler import create_access_token
+from src.services.auth.jwt_dependency import get_current_user
 
 user_auth_router = APIRouter(prefix="/auth", tags=["auth"])
 password_context = CryptContext(schemes=["argon2"], deprecated="auto")

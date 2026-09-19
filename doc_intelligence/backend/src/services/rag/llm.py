@@ -6,7 +6,7 @@ from anthropic import Anthropic
 from ollama import Client
 from google.genai import Client as GeminiClient
 
-from schemas.env_schema import settings
+from src.schemas.env_schema import settings
 
 # -------------------------
 # Client setup

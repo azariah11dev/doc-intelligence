@@ -32,18 +32,17 @@ export default function SideBar() {
     localStorage.removeItem("username");
     localStorage.removeItem("role");
     localStorage.removeItem("access_token");
-    localStorage.removeItem("analysis_history");
     window.location.assign("/login");
   };
   
   return (
-    <div className="fixed top-16 left-0 h-[calc(100%-4rem)] w-48 flex flex-col gap-20 font-semibold pt-4 bg-black border-r border-transparent z-40">
-      <ul className="gap-9">
-        <li className="text-sm text-[#c5c6c7] gap-2">
-            <span className="hover:text-[#45a29e] transition-colors">
+    <div className="fixed h-screen w-48 flex flex-col gap-20 font-semibold pt-4 bg-black z-40">
+      <ul className="gap-9 text-center">
+        <li className="text-sm text-[#c5c6c7]">
+            <span className="hover:text-[#45a29e] transition-colors font-bold text-lg">
               {username} ({role})
             </span>
-            <div>
+            <div className="mt-2 mb-4">
                 {now && (
                     <>
                         <span>{dateString}</span> • <span>{timeString}</span>
@@ -71,7 +70,7 @@ export default function SideBar() {
           </li>
         )}
       </ul>
-      <ul className="gap-9">
+      <ul className="gap-9 text-center">
         <li className="p-4 hover:text-[#45a29e] cursor-pointer">
           <Link href="/ticket">Ticket</Link>
         </li>

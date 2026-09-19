@@ -36,7 +36,7 @@ export default function Dashboard() {
   return (
     <div className="ml-48 p-10 text-[#c5c6c7]">
       {/* Greeting */}
-      <section className="mb-10">
+      <section className="mb-10 text-center">
         <h2 className="text-3xl font-bold">
           Good {greeting}, {username}
         </h2>
@@ -50,7 +50,7 @@ export default function Dashboard() {
         <h3 className="text-xl font-semibold mb-4">Uploaded Documents</h3>
 
         <div className="grid grid-cols-3 gap-6">
-          <div className="bg-[#0b0c10] border border-[#1f2833] p-6 rounded-lg">
+          <div className="bg-[#0b0c10] border border-[#1f2833] p-6 rounded-lg text-center">
             <p className="text-4xl font-bold text-white">{docCount}</p>
             <p className="text-gray-400 mt-2">Documents</p>
           </div>

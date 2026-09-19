@@ -1,0 +1,198 @@
+===============================
+TAILWIND CSS UTILITY CHEAT SHEET
+===============================
+
+--------------------------------
+LAYOUT & DISPLAY
+--------------------------------
+flex                → Flex container
+inline-flex         → Inline flex container
+block               → Block element
+inline-block        → Inline-block element
+hidden              → Display: none
+
+flex-row            → Horizontal layout
+flex-col            → Vertical layout
+flex-wrap           → Allow wrapping
+flex-nowrap         → Prevent wrapping
+
+items-start         → Align items top
+items-center        → Align items center
+items-end           → Align items bottom
+
+justify-start       → Align left
+justify-center      → Align center
+justify-end         → Align right
+justify-between     → Space between
+
+gap-*               → Gap between children (e.g., gap-4, gap-20)
+
+--------------------------------
+POSITIONING
+--------------------------------
+relative            → Position relative
+absolute            → Position absolute
+fixed               → Fixed to viewport
+sticky              → Sticky on scroll
+
+top-*, bottom-*, left-*, right-* → Positional offsets
+
+inset-0             → All sides = 0
+inset-x-0           → Left + right = 0
+inset-y-0           → Top + bottom = 0
+
+z-*                 → Z-index (e.g., z-10, z-40)
+
+--------------------------------
+SPACING (PADDING & MARGIN)
+--------------------------------
+p-*                 → Padding all sides
+px-*                → Horizontal padding
+py-*                → Vertical padding
+pt-*, pr-*, pb-*, pl-* → Per-side padding
+
+m-*                 → Margin all sides
+mx-*                → Horizontal margin
+my-*                → Vertical margin
+mt-*, mr-*, mb-*, ml-* → Per-side margin
+
+--------------------------------
+WIDTH & HEIGHT
+--------------------------------
+w-full              → Width: 100%
+w-screen            → Width: 100vw
+w-48                → Width: 12rem
+w-1/2, w-1/3, w-2/3 → Fractional widths
+
+h-full              → Height: 100%
+h-screen            → Height: 100vh
+h-auto              → Auto height
+h-[calc(...)]       → Custom height
+
+min-h-screen        → Min-height: 100vh
+
+--------------------------------
+BORDERS & RADIUS
+--------------------------------
+border              → 1px border
+border-0            → No border
+border-2            → 2px border
+border-t, border-b, border-l, border-r → Per-side borders
+
+rounded             → Small radius
+rounded-md          → Medium radius
+rounded-lg          → Large radius
+rounded-xl          → Extra large
+rounded-full        → Circle / pill
+
+--------------------------------
+COLORS (TEXT & BACKGROUND)
+--------------------------------
+bg-*                → Background color (e.g., bg-black, bg-gray-900)
+text-*              → Text color (e.g., text-white, text-gray-300)
+
+hover:bg-*          → Background on hover
+hover:text-*        → Text color on hover
+
+--------------------------------
+TYPOGRAPHY
+--------------------------------
+text-xs             → Extra small text
+text-sm             → Small text
+text-base           → Default text
+text-lg             → Large text
+text-xl             → Extra large
+text-2xl, text-3xl  → Larger sizes
+
+font-light          → Thin font
+font-normal         → Normal weight
+font-medium         → Medium weight
+font-semibold       → Semi-bold
+font-bold           → Bold
+
+tracking-tight      → Tight letter spacing
+tracking-wide       → Wide letter spacing
+
+--------------------------------
+SHADOWS
+--------------------------------
+shadow-sm           → Small shadow
+shadow              → Default shadow
+shadow-md           → Medium shadow
+shadow-lg           → Large shadow
+shadow-xl           → Extra large
+shadow-2xl          → Very large
+
+--------------------------------
+TRANSITIONS & ANIMATION
+--------------------------------
+transition          → Enable transitions
+transition-all      → Transition all properties
+transition-colors   → Smooth color transitions
+transition-opacity  → Smooth opacity transitions
+
+duration-75         → 75ms
+duration-150        → 150ms
+duration-300        → 300ms
+
+ease-in             → Ease-in curve
+ease-out            → Ease-out curve
+ease-in-out         → Smooth both ends
+
+--------------------------------
+GRID
+--------------------------------
+grid                → Grid container
+grid-cols-*         → Number of columns (e.g., grid-cols-2)
+gap-*               → Grid gap
+
+--------------------------------
+SCROLL & OVERFLOW
+--------------------------------
+overflow-hidden     → Hide overflow
+overflow-auto       → Scroll when needed
+overflow-scroll     → Always scroll
+overflow-x-scroll   → Horizontal scroll
+overflow-y-scroll   → Vertical scroll
+
+--------------------------------
+CURSOR
+--------------------------------
+cursor-pointer      → Pointer cursor
+cursor-default      → Default cursor
+cursor-not-allowed  → Disabled cursor
+
+--------------------------------
+OPACITY
+--------------------------------
+opacity-0           → Invisible
+opacity-25          → 25% opacity
+opacity-50          → 50% opacity
+opacity-75          → 75% opacity
+opacity-100         → Fully visible
+
+--------------------------------
+MISC
+--------------------------------
+select-none         → Disable text selection
+select-text         → Enable text selection
+
+pointer-events-none → Ignore mouse events
+pointer-events-auto → Normal mouse events
+
+object-cover        → Image covers container
+object-contain      → Image fits inside container
+
+--------------------------------
+DARK MODE
+--------------------------------
+dark:bg-gray-900    → Background in dark mode
+dark:text-gray-100  → Text in dark mode
+dark:hover:bg-gray-700 → Hover in dark mode
+
+--------------------------------
+CUSTOM CSS VARIABLES
+--------------------------------
+bg-[var(--bg-primary)]     → Background from CSS variable
+text-[var(--text-primary)] → Text from CSS variable
+border-[var(--border-color)] → Border from variable

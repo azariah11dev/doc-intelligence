@@ -142,7 +142,7 @@ async def upload_document(
 
         # IDs and collection
         doc_id = str(uuid.uuid4())
-        collection_name = "documents"
+        collection_name = "doc_intelligence"
 
         # Versioned path + Qdrant cleanup
         saved_file = get_versioned_path(

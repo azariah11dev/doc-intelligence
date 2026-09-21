@@ -1,11 +1,12 @@
 from sentence_transformers import SentenceTransformer, CrossEncoder
 from qdrant_client.models import ScoredPoint
 from qdrant_client import QdrantClient
-from typing import List, Literal
+from typing import List, Literal, AsyncIterator
 import os
 from typing import List
 from fastembed import SparseTextEmbedding
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import iterate_in_threadpool
 
 from qdrant_client.models import (
     Fusion,
@@ -15,8 +16,8 @@ from qdrant_client.models import (
 )
 
 from src.services.rag.llm import GenerationModel
-from src.schemas.env_schema import settings
 from src.models.user_querydb import ChatHistory
+from src.schemas.env_schema import settings
 
 qdrant_url = settings.QDRANT_URL or os.getenv("QDRANT_URL")
 qdrant = QdrantClient(url=qdrant_url, check_compatibility=False)
@@ -27,7 +28,7 @@ class queryRetrieval:
         session: AsyncSession,
         model_name: str = "BAAI/bge-m3",
         reranker_name: str = "BAAI/bge-reranker-base",
-        collection_name: str = "documents",
+        collection_name: str = "doc_intelligence",
         dense_vector_name: str = "dense",
         sparse_vector_name: str = "sparse"
     ):
@@ -125,7 +126,7 @@ class queryRetrieval:
             {
                 "text": doc.payload["text"],
                 "source": doc.payload.get("source"),
-                "chunk_index": doc.payload.get("chunk_index"),
+                "chunk_count": doc.payload.get("chunk_count"),
                 "score": float(score),
                 "id": doc.id,
             }
@@ -134,63 +135,54 @@ class queryRetrieval:
 
     # Generation orchestrator
     async def answer(
-        self, 
-        query: str, 
+        self,
+        query: str,
         username: str,
         rewrite_model: str,
         generation_model: str,
-        provider: Literal["ollama", "openai", "claude", "google"] = "ollama"
-    ) -> str: 
+        provider: Literal["ollama", "openai", "claude", "google"] = "ollama",
+    ) -> AsyncIterator[str]:
+        generation = GenerationModel(
+            rewrite_model=rewrite_model,
+            generation_model=generation_model,
+        )
 
-        try:
-            generation = GenerationModel(
-                rewrite_model=rewrite_model,
-                generation_model=generation_model
-            )
+        # 1. Rephrase
+        rewritten_query = generation.rephrase_query(query)
 
-            # 1. Rephrase
-            rewritten_query = generation.rephrase_query(query)
+         # 2. Retrieve
+        retrieved = self.retrieve(rewritten_query)
 
-            # 2. Retrieve
-            retrieved = self.retrieve(rewritten_query)
+        context_source = "\n".join(
+            f"{doc['source']}:{doc['chunk_count']}" for doc in retrieved
+        )
+        context_text = "\n\n".join(doc["text"] for doc in retrieved)
 
-            # 3. Build context source
-            context_source = "\n".join(
-                f"{doc['source']}:{doc['chunk_count']}"
-                for doc in retrieved
-            )
+        prompt = generation.build_prompt(query=rewritten_query, context=context_text)
 
-            # 4. Build context text
-            context_text = "\n\n".join(doc["text"] for doc in retrieved)
+        # 3. Pick a token stream (sync iterator of str)
+        if provider == "ollama":
+            token_iter = generation.generate_ollama_stream(prompt)
+        elif provider == "openai":
+            token_iter = [generation.generate_openai(prompt)]
+        elif provider == "claude":
+            token_iter = [generation.generate_claude(prompt)]
+        elif provider == "google":
+            token_iter = [generation.generate_gemini(prompt)]
+        else:
+            raise ValueError(f"Unknown provider: {provider}")
 
-            # 5. Build prompt
-            prompt = generation.build_prompt(
-                query=rewritten_query,
-                context=context_text,
-            )
+        # 4. Stream tokens out, collecting them for the log
+        chunks: list[str] = []
+        async for chunk in iterate_in_threadpool(token_iter):
+            chunks.append(chunk)
+            yield chunk
 
-            # 6. Provider routing
-            if provider == "openai":
-                final_response = generation.generate_openai(prompt)
-            elif provider == "claude":
-                final_response = generation.generate_claude(prompt)
-            elif provider == "ollama":
-                final_response = generation.generate_ollama(prompt)
-            elif provider == "google":
-                final_response = generation.generate_gemini(prompt)
-            else:
-                raise ValueError(f"Unknown provider: {provider}")
-
-            # 7. Log chat
-            await self.chat_logs(
-                username=username,
-                query=query,
-                rephrase=rewritten_query,
-                response=final_response,
-                context=context_source
-            )
-
-            return final_response
-
-        except Exception as e:
-            raise RuntimeError(f"Generation failed: {e}") from e
+        # 5. Runs after the last token
+        await self.chat_logs(
+            username=username,
+            query=query,
+            rephrase=rewritten_query,
+            response="".join(chunks),
+            context=context_source,
+        )

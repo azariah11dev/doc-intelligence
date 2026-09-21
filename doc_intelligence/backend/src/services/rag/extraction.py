@@ -119,7 +119,7 @@ class DocumentExtractor:
     async def extract_text(self, collection_name: str, mime_type: str) -> dict:
 
         # Mark as processing BEFORE extraction
-        await self.update_document_status("PROCESSING")
+        await self.update_document_status(status="PROCESSING", error=None)
 
         if mime_type == "application/pdf":
             raw = await self.extract_pdf_pdfminer()
@@ -128,6 +128,7 @@ class DocumentExtractor:
         elif mime_type == "text/plain":
             raw = await self.extract_txt()
         else:
+            await self.update_document_status("FAILED", f"Unsupported MIME type: {mime_type}")
             raise RuntimeError(f"Unsupported MIME type: {mime_type}")
 
         text = self.normalize_text(raw)
@@ -140,4 +141,4 @@ class DocumentExtractor:
             document_id_for_status=self.document_id
         )
 
-        return {"message": f"storage successful for {self.document_id}"}
+        return {"message": f"storage successful for {self.file_name}"}

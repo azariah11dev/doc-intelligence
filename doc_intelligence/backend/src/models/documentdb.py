@@ -18,10 +18,10 @@ class Document(Base):
 
     file_path = Column(String)
 
-    upload_ts = Column(DateTime)
+    upload_ts = Column(DateTime(timezone=True))
 
     action = Column(String, nullable=True)
 
-    status = Column(Enum("UPLOADED", "SUCCESS", "FAILED", name="status_enum"))
+    status = Column(Enum("UPLOADED", "PROCESSING", "SUCCESS", "FAILED", name="status_enum"))
 
     error = Column(Text, nullable=True)

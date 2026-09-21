@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
-from typing import Iterator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.services.rag.retrieval_engine import queryRetrieval
@@ -9,27 +8,25 @@ from src.services.model_dependencies.session_maker import get_async_session
 
 response_generation = APIRouter(prefix="/response_generation", tags=["response_generation"])
 
-def stream_answer(
+async def stream_answer(
     rag: queryRetrieval, 
     question: str,
     username: str,
     rewrite_model: str,
     generation_model: str,
     provider: str
-) -> Iterator[str]:
+):
     try:
-        # rag.answer returns a string, so yield it once
-        result = rag.answer(
+        async for chunk in rag.answer(
             query=question,
             username=username,
             rewrite_model=rewrite_model,
             generation_model=generation_model,
-            provider=provider
-        )
-        yield result
-
+            provider=provider,
+        ):
+            yield chunk
     except Exception as exc:
-        raise RuntimeError(f"Error generating answer: {exc}") from exc
+        yield f"\n\n[Error generating answer: {exc}]"
 
 
 @response_generation.post("/answer")

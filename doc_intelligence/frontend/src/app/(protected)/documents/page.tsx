@@ -1,8 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/upload";
-
 type FileEntry = {
     path: string;
     name: string;
@@ -60,7 +58,7 @@ export default function Documents() {
         setFilesLoading(true);
         setFilesError("");
         try {
-            const res = await fetch(`${API_BASE}/files`);
+            const res = await fetch("http://localhost:8000/upload/files");
             if (!res.ok) throw new Error(`Server returned ${res.status}`);
             const data = await res.json();
             const parsed: FileEntry[] = (data.files || []).map((p: string) => ({
@@ -81,7 +79,7 @@ export default function Documents() {
         setAuditLoading(true);
         setAuditError("");
         try {
-            const res = await fetch(`${API_BASE}/audit_trail`);
+            const res = await fetch("http://localhost:8000/upload/audit_trail");
             if (!res.ok) throw new Error(`Server returned ${res.status}`);
             const data = await res.json();
             setAuditRows(data);
@@ -112,7 +110,7 @@ export default function Documents() {
         formData.append("file", file);
 
         try {
-            const res = await fetch("/api/upload", {
+            const res = await fetch("http://localhost:8000/upload/documents", {
                 method: "POST",
                 body: formData,
             });
@@ -168,7 +166,7 @@ export default function Documents() {
                         <button
                             onClick={handleUpload}
                             disabled={uploading}
-                            className="w-1/3 px-4 py-2 bg-teal-600 hover:bg-teal-500 rounded text-white font-medium disabled:opacity-50"
+                            className="w-1/3 bg-teal-600 hover:bg-teal-500 rounded text-white font-medium disabled:opacity-50"
                         >
                             {uploading ? "Uploading..." : "Upload"}
                         </button>

@@ -66,64 +66,66 @@ async def retrieve_files(session: AsyncSession = Depends(get_async_session)):
 # ---------------------------------------------------------------------------------------
 # POST
 #----------------------------------------------------------------------------------------
+class VersioningError(Exception):
+    """Raised when get_versioned_path fails to compute versioning metadata."""
+    pass
+
+
 def get_versioned_path(
     document_id: str,
     collection_name: str,
     file_name: str,
     session: AsyncSession,
 ) -> dict:
-    """
-    Determine the next versioned filename and return:
-    - last_version_name: the most recent version stored (or None)
-    - file_name: the new version to create
-    - path: full path for the new version
-    """
-    storage = SemanticChunker(session=session)
+    try:
+        storage = SemanticChunker(session=session)
 
-    base_dir = os.path.join(os.path.dirname(__file__), "..", "models", "files")
-    os.makedirs(base_dir, exist_ok=True)
+        base_dir = os.path.join(os.path.dirname(__file__), "..", "models", "files")
+        os.makedirs(base_dir, exist_ok=True)
 
-    name, ext = os.path.splitext(file_name)
+        stem, ext = os.path.splitext(file_name)
 
-    # Pattern: myfile_v1.pdf, myfile_v2.pdf, etc.
-    pattern = re.compile(rf"^{re.escape(name)}_v(\d+){re.escape(ext)}$")
+        # Normalize: "myfile_v1" -> "myfile"
+        name = re.compile(r"_v\d+$").sub("", stem)
 
-    existing_versions = []
-    versioned_files = []
+        pattern = re.compile(rf"^{re.escape(name)}_v(\d+){re.escape(ext)}$")
 
-    for f in os.listdir(base_dir):
-        match = pattern.match(f)
-        if match:
-            version = int(match.group(1))
-            existing_versions.append(version)
-            versioned_files.append(f)
+        existing_versions = []
+        for f in os.listdir(base_dir):
+            match = pattern.match(f)
+            if match:
+                existing_versions.append(int(match.group(1)))
 
-    # Determine last version
-    if existing_versions:
-        last_version = max(existing_versions)
-        last_version_name = f"{name}_v{last_version}{ext}"
-    else:
-        last_version = None
-        last_version_name = None
+        if existing_versions:
+            last_version = max(existing_versions)
+            last_version_name = f"{name}_v{last_version}{ext}"
+        else:
+            last_version = None
+            last_version_name = None
 
-    # Delete vectors for the last version (if any)
-    if last_version_name:
-        action = storage.delete_vectors_by_source(
-            document_id=document_id,
-            collection_name=collection_name,
-            file_name=last_version_name,
-        )
+        action = None
+        if last_version_name:
+            action = storage.delete_vectors_by_source(
+                document_id=document_id,
+                collection_name=collection_name,
+                file_name=last_version_name,
+            )
 
-    # Determine next version
-    next_version = (last_version or 0) + 1
-    next_version_name = f"{name}_v{next_version}{ext}"
+        next_version = (last_version or 0) + 1
+        next_version_name = f"{name}_v{next_version}{ext}"
 
-    return {
-        "last_version_name": last_version_name,
-        "path": os.path.join(base_dir, next_version_name),
-        "file_name": next_version_name,
-        "action": action
-    }
+        return {
+            "last_version_name": last_version_name,
+            "path": os.path.join(base_dir, next_version_name),
+            "file_name": next_version_name,
+            "action": action,
+        }
+
+    except Exception as e:
+        raise VersioningError(
+            f"Versioning failed for file '{file_name}' in collection '{collection_name}': {e}"
+        ) from e
+
 
 @upload_router.post("/documents")
 async def upload_document(

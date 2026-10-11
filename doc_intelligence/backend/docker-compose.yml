@@ -56,7 +56,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       PYTHONPATH: /app/src
       QDRANT_URL: ${QDRANT_URL}
-      OLLAMA_HOST: ${OLLAMA_HOST}
+      OLLAMA_HOST: http://host.docker.internal:11435
     working_dir: /app
     ports:
       - "8000:8000"

@@ -13,19 +13,42 @@ const model_provider: Record<string, string> = {
     "Claude-3.5-Sonnet": "claude",
     "Claude-3.5-Haiku": "claude",
     "Claude-3-Opus": "claude",
-    "qwen3.6:27b": "ollama"
+    "qwen3.8:27b": "ollama"
 };
 
 export default function Chat() {
-    const [model, setModel] = useState("qwen3.6:27b");
+    const [model, setModel] = useState("qwen3.8:27b");
     const [question, setQuestion] = useState("");
     const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
+    const [conversationId, setConversationId] = useState<string | null>(null);
+
+    async function loadConversation(convoId: string) {
+        try {
+            const res = await fetch(`http://localhost:8000/chat/conversation/${convoId}`);
+            if (!res.ok) throw new Error("Failed to load conversation");
+
+            const data = await res.json();
+
+            const loadedMessages: Message[] = [];
+
+            for (const m of data.messages) {
+                loadedMessages.push({ role: "user", content: m.query });
+                loadedMessages.push({ role: "assistant", content: m.response });
+            }
+
+            setMessages(loadedMessages);
+            setConversationId(convoId);
+        } catch (err) {
+            console.error("Error loading conversation:", err);
+        }
+    }
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
+
 
     function updateLastMessage(fn: (content: string) => string) {
         setMessages((prev) => {
@@ -56,9 +79,10 @@ export default function Chat() {
                 body: JSON.stringify({
                     question: q,
                     username: localStorage.getItem("username"),
-                    rewrite_model: "qwen2.5:3b",
+                    rewrite_model: "qwen2.5:3b", // You can set this to None or "" if you don't want a rewrite
                     generation_model: model,
                     provider: model_provider[model],
+                    id: conversationId ?? null,
                 }),
             });
 
@@ -72,12 +96,23 @@ export default function Chat() {
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
+
                 const chunk = decoder.decode(value, { stream: true });
+
+                // Try to parse JSON metadata
+                try {
+                    const obj = JSON.parse(chunk);
+                    if (obj.meta?.conversation_id) {
+                        setConversationId(obj.meta.conversation_id);
+                        localStorage.setItem("conversation_id", obj.meta.conversation_id);
+                        continue; // DO NOT append to chat
+                    }
+                } catch (err) {
+                    console.log(err)
+                }
+                // Append streamed text normally
                 updateLastMessage((content) => content + chunk);
             }
-        } catch (err) {
-            console.error("Chat error:", err);
-            updateLastMessage(() => "Something went wrong. Please try again.");
         } finally {
             setLoading(false);
         }
@@ -89,9 +124,8 @@ export default function Chat() {
                 {messages.map((m, i) => (
                     <div
                         key={i}
-                        className={`p-2 rounded whitespace-pre-wrap ${
-                            m.role === "user" ? "bg-gray-700" : "bg-gray-800"
-                        }`}
+                        className={`p-2 rounded whitespace-pre-wrap ${m.role === "user" ? "bg-gray-700" : "bg-gray-800"
+                            }`}
                     >
                         {m.content}
                     </div>
@@ -131,6 +165,19 @@ export default function Chat() {
                         >
                             {loading ? "..." : "Send"}
                         </button>
+                    </div>
+                    <div>
+                        <button
+                            className="px-3 py-2 bg-gray-700 rounded"
+                            onClick={() => {
+                                setMessages([]);
+                                setConversationId(null);
+                                localStorage.removeItem("conversation_id");
+                            }}
+                        >
+                            New Chat
+                        </button>
+
                     </div>
                 </div>
             </section>

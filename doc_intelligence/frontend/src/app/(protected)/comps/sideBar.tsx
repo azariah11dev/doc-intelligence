@@ -32,46 +32,56 @@ export default function SideBar() {
     localStorage.removeItem("username");
     localStorage.removeItem("role");
     localStorage.removeItem("access_token");
+    localStorage.removeItem("email");
+    localStorage.removeItem("conversation_id");
     window.location.assign("/login");
   };
-  
+
   return (
-    <div className="fixed h-screen w-48 flex flex-col gap-20 font-semibold pt-4 bg-black z-40">
-      <ul className="gap-9 text-center">
+    <div className="fixed h-screen w-48 flex flex-col justify-between font-semibold pt-4 pb-4 bg-black z-40">
+
+      {/* TOP SECTION */}
+      <ul className="flex flex-col text-center">
         <li className="text-sm text-[#c5c6c7]">
-            <span className="hover:text-[#45a29e] transition-colors font-bold text-lg">
-              {username} ({role})
-            </span>
-            <div className="mt-2 mb-4">
-                {now && (
-                    <>
-                        <span>{dateString}</span> • <span>{timeString}</span>
-                    </>
-                )}
-            </div>
+          <span className="hover:text-[#45a29e] transition-colors font-bold text-lg">
+            {username} ({role})
+          </span>
+
+          <div className="mt-2 mb-4">
+            {now && (
+              <>
+                <span>{dateString}</span> • <span>{timeString}</span>
+              </>
+            )}
+          </div>
         </li>
 
-        <li className="p-4 hover:text-[#45a29e] cursor-pointer">
+        <li className="p-2 hover:text-[#45a29e] cursor-pointer">
           <Link href="/dashboard">Dashboard</Link>
         </li>
 
-        <li className="p-4 hover:text-[#45a29e] cursor-pointer">
+        <li className="p-2 hover:text-[#45a29e] cursor-pointer">
           <Link href="/documents">Documents</Link>
         </li>
 
-        <li className="p-4 hover:text-[#45a29e] cursor-pointer">
+        <li className="p-2 hover:text-[#45a29e] cursor-pointer">
           <Link href="/chat">Chat</Link>
         </li>
 
-        {/* ADMIN ONLY ITEM */}
+        <li className="p-2 hover:text-[#45a29e] cursor-pointer">
+          <Link href="/chat_history">Chat History</Link>
+        </li>
+
         {role?.toLowerCase() === "admin" && (
-          <li className="p-4 hover:text-[#45a29e] cursor-pointer">
+          <li className="p-2 hover:text-[#45a29e] cursor-pointer">
             <Link href="/user-roles">User Roles</Link>
           </li>
         )}
       </ul>
-      <ul className="gap-9 text-center">
-        <li className="p-4 hover:text-[#45a29e] cursor-pointer">
+
+      {/* BOTTOM SECTION */}
+      <ul className="flex flex-col gap-2 text-center">
+        <li className="p-2 hover:text-[#45a29e] cursor-pointer">
           <Link href="/ticket">Ticket</Link>
         </li>
 

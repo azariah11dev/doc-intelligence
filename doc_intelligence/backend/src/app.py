@@ -3,20 +3,36 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 
-from src.services.model_dependencies.database import create_db_and_tables
+from src.services.model_dependencies.database import engine
+from src.models.usersdb import Users
+from src.models.documentdb import Document
+from src.models.user_querydb import Conversation, ChatMessage, MessageContext
 
 from src.endpoints.contacts import contact_router
 from src.endpoints.documents import upload_router
 from src.endpoints.response_generation import response_generation
 from src.endpoints.user_auth import user_auth_router
 
+async def ensure_table():
+    tables = [
+        Users.__table__,
+        Document.__table__,
+        Conversation.__table__,
+        ChatMessage.__table__,
+        MessageContext.__table__,
+    ]
+
+    async with engine.begin() as conn:
+        for table in tables:
+            await conn.run_sync(table.create, checkfirst=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await create_db_and_tables()
+    await ensure_table()
     yield
 
 app = FastAPI(title="Doc Intelligence", version="1.0", lifespan=lifespan)
+
 
 app.add_middleware(
     CORSMiddleware,

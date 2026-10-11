@@ -12,6 +12,7 @@ dependencies = [
     "fastapi>=0.141.1",
     "fastembed>=0.8.0",
     "google-genai>=2.24.0",
+    "ipykernel>=7.4.0",
     "ollama>=0.6.2",
     "openai>=3.16.2",
     "passlib>=1.7.4",

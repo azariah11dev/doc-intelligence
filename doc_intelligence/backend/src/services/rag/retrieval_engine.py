@@ -1,12 +1,16 @@
 from sentence_transformers import SentenceTransformer, CrossEncoder
 from qdrant_client.models import ScoredPoint
 from qdrant_client import QdrantClient
-from typing import List, Literal, AsyncIterator
+from typing import List, Literal, AsyncIterator, Dict
 import os
 from typing import List
 from fastembed import SparseTextEmbedding
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import iterate_in_threadpool
+from sqlalchemy import select
+import uuid
+from sqlalchemy.sql import func
+import json
 
 from qdrant_client.models import (
     Fusion,
@@ -16,7 +20,7 @@ from qdrant_client.models import (
 )
 
 from src.services.rag.llm import GenerationModel
-from src.models.user_querydb import ChatHistory
+from src.models.user_querydb import Conversation, ChatMessage, MessageContext
 from src.schemas.env_schema import settings
 
 qdrant_url = settings.QDRANT_URL or os.getenv("QDRANT_URL")
@@ -44,22 +48,45 @@ class queryRetrieval:
     # Chat logs
     async def chat_logs(
         self, 
+        id: str | uuid.UUID | None,
         username: str, 
         query: str, 
-        rephrase: str,
         response: str,
+        rephrase: str,
         context: str
     ) -> None:
-        
-        logging = ChatHistory(
-            username=username,
+
+        conversation_id = uuid.UUID(str(id)) if id else uuid.uuid4()
+        convo = select(Conversation).where(Conversation.id == conversation_id)
+        convo_result = await self.session.execute(convo)
+        conversation = convo_result.scalar_one_or_none()
+
+        if conversation is None:
+            conversation = Conversation(
+                id=conversation_id,
+                username=username,
+            )
+            self.session.add(conversation)
+            await self.session.flush()
+
+        chat = ChatMessage(
+            conversation_id=conversation_id,
             query=query,
-            rephrase=rephrase,
             response=response,
-            context=context
+            rephrase=rephrase
         )
 
-        self.session.add(logging)
+        self.session.add(chat)
+        await self.session.flush()  # ensures chat.id is available
+
+        sources = MessageContext(
+            message_id=chat.id,
+            context=context
+        )
+        self.session.add(sources)
+        # Update conversation timestamp
+        conversation.last_updated = func.now()
+
         await self.session.commit()
 
     # Sparse encoder
@@ -133,9 +160,42 @@ class queryRetrieval:
             for doc, score in top_docs
         ]
 
+    def _format_sources(self, retrieved: List[dict]) -> dict:
+        if not retrieved:
+            return {
+                "postgres": "Sources: none",
+                "output": "Sources: none"
+            }
+
+        grouped: Dict[str, List[str]] = {}
+
+        for doc in retrieved:
+            source = doc.get("source") or "unknown source"
+            chunk_count = doc.get("chunk_count")
+            grouped.setdefault(source, [])
+            if chunk_count is not None:
+                grouped[source].append(str(chunk_count))
+
+        # Build detailed parts (for DB)
+        detailed_parts = []
+        for source, chunks in grouped.items():
+            if chunks:
+                detailed_parts.append(f"{source} ({'; '.join(chunks)})")
+            else:
+                detailed_parts.append(source)
+
+        # Build simplified parts (for user output)
+        simple_parts = list(grouped.keys())
+
+        return {
+            "postgres": "Sources: " + "; ".join(detailed_parts),
+            "output": "Sources: " + "; ".join(simple_parts)
+        }
+
     # Generation orchestrator
     async def answer(
         self,
+        id: str | None,
         query: str,
         username: str,
         rewrite_model: str,
@@ -147,15 +207,23 @@ class queryRetrieval:
             generation_model=generation_model,
         )
 
+        if not id:
+            id = uuid.uuid4()
+
         # 1. Rephrase
-        rewritten_query = generation.rephrase_query(query)
+        if rewrite_model:
+            rewritten_query = generation.rephrase_query(query)
+            rephrase = rewritten_query
+        else:
+            rewritten_query = query
+            rephrase = None
 
          # 2. Retrieve
         retrieved = self.retrieve(rewritten_query)
 
-        context_source = "\n".join(
-            f"{doc['source']}:{doc['chunk_count']}" for doc in retrieved
-        )
+        # Single-line, grouped citation string — used both for the
+        # response the user sees and the context that gets logged.
+        sources_line = self._format_sources(retrieved)
         context_text = "\n\n".join(doc["text"] for doc in retrieved)
 
         prompt = generation.build_prompt(query=rewritten_query, context=context_text)
@@ -164,11 +232,11 @@ class queryRetrieval:
         if provider == "ollama":
             token_iter = generation.generate_ollama_stream(prompt)
         elif provider == "openai":
-            token_iter = [generation.generate_openai(prompt)]
+            token_iter = generation.generate_openai(prompt)
         elif provider == "claude":
-            token_iter = [generation.generate_claude(prompt)]
+            token_iter = generation.generate_claude(prompt)
         elif provider == "google":
-            token_iter = [generation.generate_gemini(prompt)]
+            token_iter = generation.generate_gemini(prompt)
         else:
             raise ValueError(f"Unknown provider: {provider}")
 
@@ -178,11 +246,28 @@ class queryRetrieval:
             chunks.append(chunk)
             yield chunk
 
+        # 4b. Attach sources as a trailing line on the response itself,
+        # not just in the DB log, so the citation is actually visible
+        # to whoever is reading the answer.
+        try:
+            if token_iter:
+                trailing = f"\n{sources_line.get("output")}"
+                chunks.append(trailing)
+                yield trailing
+        except Exception as e:
+            if not token_iter:
+                raise ConnectionError(f"Ollama server error due to: {e}")
+        finally:
+            # I need to pass on conversation ID for conversation history
+            # but can't display this show up in chat
+            yield json.dumps({"meta": {"conversation_id": str(id)}})
+
         # 5. Runs after the last token
         await self.chat_logs(
+            id=id,
             username=username,
             query=query,
-            rephrase=rewritten_query,
+            rephrase=rephrase,
             response="".join(chunks),
-            context=context_source,
+            context=sources_line.get("postgres"),
         )

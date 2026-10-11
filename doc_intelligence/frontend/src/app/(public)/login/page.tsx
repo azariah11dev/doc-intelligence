@@ -29,6 +29,7 @@ export default function LoginPage() {
         localStorage.setItem("access_token", data.access_token);
         localStorage.setItem("username", data.username);
         localStorage.setItem("role", data.role);
+        localStorage.setItem("email", data.email);
 
         // Redirect to dashboard
         window.location.href = "/dashboard";

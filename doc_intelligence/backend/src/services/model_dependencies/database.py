@@ -15,9 +15,3 @@ engine = get_engine()
 
 class Base(DeclarativeBase):
     pass
-
-async def create_db_and_tables():
-    from src.models.usersdb import Users
-
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)

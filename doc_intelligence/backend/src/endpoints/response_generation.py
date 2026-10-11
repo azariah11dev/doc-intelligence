@@ -12,9 +12,10 @@ async def stream_answer(
     rag: queryRetrieval, 
     question: str,
     username: str,
-    rewrite_model: str,
+    rewrite_model: str | None,
     generation_model: str,
-    provider: str
+    provider: str,
+    id: str | None
 ):
     try:
         async for chunk in rag.answer(
@@ -23,6 +24,7 @@ async def stream_answer(
             rewrite_model=rewrite_model,
             generation_model=generation_model,
             provider=provider,
+            id=id
         ):
             yield chunk
     except Exception as exc:
@@ -42,7 +44,8 @@ async def response_generator(
             username=query.username,
             rewrite_model=query.rewrite_model,
             generation_model=query.generation_model,
-            provider=query.provider
+            provider=query.provider,
+            id=query.id
         )
         return StreamingResponse(stream, media_type="text/plain")
 

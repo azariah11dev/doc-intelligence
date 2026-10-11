@@ -46,7 +46,7 @@ class GenerationModel:
     """Prompt building + multi-provider generation with sane defaults."""
     def __init__(
         self, 
-        rewrite_model: str,
+        rewrite_model: str | None,
         generation_model: str
     ):
         # -------------------------

@@ -40,10 +40,23 @@ export default function Chat() {
 
             setMessages(loadedMessages);
             setConversationId(convoId);
+            localStorage.setItem("conversation_id", convoId);
         } catch (err) {
             console.error("Error loading conversation:", err);
         }
     }
+
+    useEffect(() => {
+        const idFromHistory = localStorage.getItem("open_conversation_id");
+        localStorage.removeItem("open_conversation_id");
+
+        if (idFromHistory) {
+            loadConversation(idFromHistory);
+        } else {
+            localStorage.removeItem("conversation_id");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // empty deps: runs only when the page mounts
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });

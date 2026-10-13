@@ -1,10 +1,9 @@
-from sqlalchemy import Column, String, DateTime, Integer, Text
+from sqlalchemy import Column, String, DateTime, Text
 from sqlalchemy.sql import func
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
 
 from src.services.model_dependencies.database import Base
-
 
 class Tickets(Base):
     __tablename__ = "ticket"

@@ -8,9 +8,11 @@ import re
 
 from src.schemas.file_magic_schema import detect_mime_type, validate_file_size, validate_file_type
 from src.models.documentdb import Document
+from src.models.deldocdb import DeletedVectors, DeletedDocument
 from src.services.model_dependencies.session_maker import get_async_session
 from src.services.rag.extraction import DocumentExtractor
 from src.services.rag.semantic_chunker import SemanticChunker
+from src.schemas.document_schema import DelDoc
 
 upload_router = APIRouter(prefix="/upload", tags=["upload"])
 
@@ -70,8 +72,7 @@ class VersioningError(Exception):
     """Raised when get_versioned_path fails to compute versioning metadata."""
     pass
 
-
-def get_versioned_path(
+async def get_versioned_path(
     document_id: str,
     collection_name: str,
     file_name: str,
@@ -85,31 +86,43 @@ def get_versioned_path(
 
         stem, ext = os.path.splitext(file_name)
 
-        # Normalize: "myfile_v1" -> "myfile"
-        name = re.compile(r"_v\d+$").sub("", stem)
+        # Normalize version suffix
+        match = re.match(r"^(.*)_v(\d+)$", stem)
+        name = match.group(1) if match else stem
 
         pattern = re.compile(rf"^{re.escape(name)}_v(\d+){re.escape(ext)}$")
 
         existing_versions = []
         for f in os.listdir(base_dir):
-            match = pattern.match(f)
-            if match:
-                existing_versions.append(int(match.group(1)))
+            m = pattern.match(f)
+            if m:
+                existing_versions.append(int(m.group(1)))
 
-        if existing_versions:
-            last_version = max(existing_versions)
-            last_version_name = f"{name}_v{last_version}{ext}"
-        else:
-            last_version = None
-            last_version_name = None
+        last_version = max(existing_versions) if existing_versions else None
+        last_version_name = f"{name}_v{last_version}{ext}" if last_version else None
 
         action = None
+
         if last_version_name:
-            action = storage.delete_vectors_by_source(
+            # delete vectors for last version
+            action = await storage.delete_vectors_by_source(
                 document_id=document_id,
                 collection_name=collection_name,
                 file_name=last_version_name,
             )
+
+            # log deletion
+            vector = DeletedVectors(
+                id=uuid.UUID(document_id),
+                upload_filename=file_name,
+                saved_filename=last_version_name,
+                file_path=os.path.join(base_dir, last_version_name),
+                collection_name=collection_name,
+                reason=f"automatic deletion of last version {last_version}",
+            )
+
+            session.add(vector)
+            # DO NOT commit here — let caller commit
 
         next_version = (last_version or 0) + 1
         next_version_name = f"{name}_v{next_version}{ext}"
@@ -207,4 +220,60 @@ async def upload_document(
 # ---------------------------------------------------------------------------------------
 # DELETE
 #----------------------------------------------------------------------------------------
+@upload_router.delete("/delete_document")
+async def document_deletion(
+    data: DelDoc,
+    session: AsyncSession = Depends(get_async_session)
+):
+    try:
+        # 1. Fetch document
+        stmt = select(Document).where(Document.file_path == data.file_path)
+        result = (await session.execute(stmt)).scalars().first()
 
+        if not result:
+            raise HTTPException(status_code=404, detail="Document not found")
+
+        # Extract metadata
+        id = result.id
+        upload_filename = result.upload_filename
+        saved_filename = result.saved_filename
+        file_path = result.file_path
+        collection_name = "doc_intelligence"
+
+        # 2. Delete file from disk
+        if os.path.isfile(data.file_path):
+            os.remove(data.file_path)
+        else:
+            raise FileNotFoundError(f"No file at {file_path}")
+
+        # 3. Delete vectors
+        storage = SemanticChunker(session=session)
+        await storage.delete_vectors_by_source(
+            document_id=str(id),
+            collection_name=collection_name,
+            file_name=saved_filename,
+        )
+
+        # 4. Log deletion
+        rem_doc = DeletedDocument(
+            id=id,
+            upload_filename=upload_filename,
+            saved_filename=saved_filename,
+            file_path=file_path,
+            collection_name=collection_name,
+            deleted_by=data.username,
+            reason=data.reason,
+        )
+
+        session.add(rem_doc)
+
+        # 5. Remove original document record
+        await session.delete(result)
+
+        # 6. Commit everything atomically
+        await session.commit()
+
+        return {"status": "deleted", "id": str(id)}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

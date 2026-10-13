@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, DateTime, Integer, Text, Enum
+from sqlalchemy.dialects.postgresql import UUID
 
 from src.services.model_dependencies.database import Base
 
@@ -6,7 +7,7 @@ class Document(Base):
     __tablename__ = "documents"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(String, primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, index=True)
 
     upload_filename = Column(String)
 

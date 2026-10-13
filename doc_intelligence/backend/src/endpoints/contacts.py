@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pathlib import Path
 from sqlalchemy import select, func
 import os
+import uuid
 
 from src.schemas.contacts_schema import ContactInfo
 from src.models.contactsdb import ContactHistory
@@ -71,7 +72,7 @@ async def all_tickets(session: AsyncSession = Depends(get_async_session)):
 #----------------------------------------------------------------------------------------
 @contact_router.put("/update_status")
 async def update_status(
-    ticket_id: int,
+    ticket_id: uuid.UUID,
     new_status: str,
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -89,6 +90,8 @@ async def update_status(
 
         return {"message": "Status updated"}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     

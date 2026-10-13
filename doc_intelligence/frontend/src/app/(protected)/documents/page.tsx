@@ -21,7 +21,10 @@ type AuditRow = {
 function formatBytes(bytes: number): string {
     if (!bytes) return "0 B";
     const units = ["B", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    const i = Math.min(
+        Math.floor(Math.log(bytes) / Math.log(1024)),
+        units.length - 1
+    );
     return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
 }
 
@@ -37,6 +40,12 @@ function statusColor(status: string): string {
 }
 
 export default function Documents() {
+    // --- Current user ---
+    // TODO: replace with your real auth source (context, session, JWT, etc.).
+    // These were undefined in the original code, which caused the errors.
+    const [username, setUsername] = useState("");
+    const [isAdmin, setIsAdmin] = useState(false);
+
     // --- Upload state ---
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -53,6 +62,10 @@ export default function Documents() {
     const [auditLoading, setAuditLoading] = useState(true);
     const [auditError, setAuditError] = useState("");
     const [auditQuery, setAuditQuery] = useState("");
+
+    // --- File deletion ---
+    const [showConfirm, setShowConfirm] = useState(false);
+    const [pendingDeletePath, setPendingDeletePath] = useState<string | null>(null);
 
     async function loadFiles() {
         setFilesLoading(true);
@@ -93,6 +106,13 @@ export default function Documents() {
     }
 
     useEffect(() => {
+        // Placeholder: load user info. Swap for your real auth logic.
+        try {
+            setUsername(localStorage.getItem("username") || "");
+            setIsAdmin(localStorage.getItem("role") === "admin");
+        } catch {
+            /* localStorage unavailable */
+        }
         loadFiles();
         loadAuditTrail();
     }, []);
@@ -115,7 +135,7 @@ export default function Documents() {
                 body: formData,
             });
 
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
 
             if (res.ok) {
                 setMessage("Upload successful");
@@ -124,12 +144,40 @@ export default function Documents() {
                 loadFiles();
                 loadAuditTrail();
             } else {
-                setMessage("Upload failed: " + data.error);
+                setMessage(
+                    "Upload failed: " + (data.error || data.detail || res.status)
+                );
             }
         } catch {
             setMessage("Upload failed: could not reach the server");
         } finally {
             setUploading(false);
+        }
+    }
+
+    async function handleDelete(filePath: string) {
+        try {
+            const res = await fetch("http://localhost:8000/upload/delete_document", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    file_path: filePath,
+                    username: username,
+                    reason: "manual deletion by admin",
+                }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok) {
+                alert("Delete failed: " + (data.detail || data.error || res.status));
+                return;
+            }
+
+            loadFiles();
+            loadAuditTrail();
+        } catch {
+            alert("Delete failed: could not reach server");
         }
     }
 
@@ -145,7 +193,7 @@ export default function Documents() {
         return auditRows.filter((row) =>
             [row.upload_filename, row.saved_filename, row.action, row.status, row.file_type]
                 .filter(Boolean)
-                .some((field) => field.toLowerCase().includes(q))
+                .some((field) => String(field).toLowerCase().includes(q))
         );
     }, [auditRows, auditQuery]);
 
@@ -156,17 +204,17 @@ export default function Documents() {
                 <div className="p-6 border border-gray-800 rounded-lg bg-gray-900 text-gray-200 w-full max-w-md">
                     <h2 className="text-xl font-semibold mb-4 text-center">Upload document</h2>
 
-                    <div className="w-full flex item-center justify-center">
+                    <div className="w-full flex items-center justify-center gap-3">
                         <input
                             type="file"
                             onChange={(e) => setFile(e.target.files?.[0] || null)}
-                            className="block w-full pt-2 text-sm mb-4 text-gray-300"
+                            className="block w-full text-sm text-gray-300"
                         />
 
                         <button
                             onClick={handleUpload}
                             disabled={uploading}
-                            className="w-1/3 bg-teal-600 hover:bg-teal-500 rounded text-white font-medium disabled:opacity-50"
+                            className="w-1/3 py-2 bg-teal-600 hover:bg-teal-500 rounded text-white font-medium disabled:opacity-50"
                         >
                             {uploading ? "Uploading..." : "Upload"}
                         </button>
@@ -218,9 +266,22 @@ export default function Documents() {
                                         className="px-4 py-2 text-sm hover:bg-gray-800/60 flex items-center justify-between gap-4"
                                     >
                                         <span className="truncate">{f.name}</span>
+
                                         <span className="text-gray-500 text-xs truncate max-w-[40%]">
                                             {f.path}
                                         </span>
+
+                                        {isAdmin && (
+                                            <button
+                                                onClick={() => {
+                                                    setPendingDeletePath(f.path);
+                                                    setShowConfirm(true);
+                                                }}
+                                                className="text-red-400 hover:text-red-300 text-xs border border-red-400 px-2 py-1 rounded"
+                                            >
+                                                Delete
+                                            </button>
+                                        )}
                                     </li>
                                 ))}
                             </ul>
@@ -232,6 +293,44 @@ export default function Documents() {
                             {filteredFiles.length} of {files.length} document
                             {files.length === 1 ? "" : "s"}
                         </p>
+                    )}
+
+                    {showConfirm && (
+                        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+                            <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-80 text-gray-200">
+                                <h3 className="text-lg font-semibold mb-4">Delete document?</h3>
+
+                                <p className="text-sm mb-6">
+                                    Are you sure you want to delete this document? This action
+                                    cannot be undone.
+                                </p>
+
+                                <div className="flex justify-end gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setShowConfirm(false);
+                                            setPendingDeletePath(null);
+                                        }}
+                                        className="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-sm"
+                                    >
+                                        Cancel
+                                    </button>
+
+                                    <button
+                                        onClick={async () => {
+                                            if (pendingDeletePath) {
+                                                await handleDelete(pendingDeletePath);
+                                            }
+                                            setShowConfirm(false);
+                                            setPendingDeletePath(null);
+                                        }}
+                                        className="px-3 py-1 rounded bg-red-600 hover:bg-red-500 text-sm"
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     )}
                 </div>
             </section>

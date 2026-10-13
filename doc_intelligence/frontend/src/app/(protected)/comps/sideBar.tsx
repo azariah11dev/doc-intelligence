@@ -34,6 +34,7 @@ export default function SideBar() {
     localStorage.removeItem("access_token");
     localStorage.removeItem("email");
     localStorage.removeItem("conversation_id");
+    localStorage.removeItem("open_conversation_id");
     window.location.assign("/login");
   };
 

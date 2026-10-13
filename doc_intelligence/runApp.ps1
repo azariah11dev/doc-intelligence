@@ -5,7 +5,7 @@ trap {
     break
 }
 
-Write-Host "Starting TaskForge System..."
+Write-Host "Starting Doc Intelligence System..."
 
 # -----------------------------
 # Start Docker backend services
@@ -30,7 +30,7 @@ Start-Sleep -Seconds 3
 
 Write-Host "Backend running at http://localhost:8000"
 Write-Host "Frontend running at http://localhost:3000"
-Write-Host "TaskForge System Ready."
+Write-Host "Doc Intelligence System Ready."
 
 Start-Process "http://localhost:3000"
 

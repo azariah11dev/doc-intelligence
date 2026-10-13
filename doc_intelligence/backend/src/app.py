@@ -12,6 +12,7 @@ from src.endpoints.contacts import contact_router
 from src.endpoints.documents import upload_router
 from src.endpoints.response_generation import response_generation
 from src.endpoints.user_auth import user_auth_router
+from src.endpoints.chat_history import chat_router
 
 async def ensure_table():
     tables = [
@@ -65,3 +66,4 @@ app.include_router(contact_router)
 app.include_router(upload_router)
 app.include_router(response_generation)
 app.include_router(user_auth_router)
+app.include_router(chat_router)

@@ -31,7 +31,7 @@ export default function ChatHistory() {
     }, []);
 
     function openConversation(id: string) {
-        localStorage.setItem("conversation_id", id);
+        localStorage.setItem("open_conversation_id", id);
         router.push("/chat");
     }
 

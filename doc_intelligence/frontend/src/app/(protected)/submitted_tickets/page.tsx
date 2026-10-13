@@ -2,8 +2,19 @@
 
 import { useEffect, useState } from "react";
 
+type Ticket = {
+    id: string;
+    username: string;
+    email: string;
+    subject: string | null;
+    description: string | null;
+    priority: string | null;
+    status: string | null;
+    filepath: string | null;
+};
+
 export default function SubmittedTickets() {
-    const [tickets, setTickets] = useState([]);
+    const [tickets, setTickets] = useState<Ticket[]>([]);
     const [loading, setLoading] = useState(true);
 
     async function loadTickets() {
@@ -11,6 +22,9 @@ export default function SubmittedTickets() {
             const res = await fetch("http://localhost:8000/contact/open_tickets", {
                 method: "GET",
             });
+            if (!res.ok) {
+                throw new Error(`Failed to load tickets: ${res.status}`);
+            }
             const data = await res.json();
             setTickets(data);
         } catch (err) {
@@ -20,15 +34,22 @@ export default function SubmittedTickets() {
         }
     }
 
-    async function updateStatus(id, newStatus) {
+    async function updateStatus(id: string, newStatus: string) {
         try {
-            await fetch(
-                `http://localhost:8000/contact/update_status?ticket_id=${id}&new_status=${newStatus}`,
+            const params = new URLSearchParams({
+                ticket_id: id,
+                new_status: newStatus,
+            });
+            const res = await fetch(
+                `http://localhost:8000/contact/update_status?${params}`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                 }
             );
+            if (!res.ok) {
+                throw new Error(`Failed to update ticket status: ${res.status}`);
+            }
 
             setTickets(prev =>
                 prev.map(t =>
@@ -36,11 +57,12 @@ export default function SubmittedTickets() {
                 )
             );
         } catch (err) {
-            console.error(err);
+            console.error("Failed to update ticket status:", err);
+            window.alert("Could not update ticket status. Please try again.");
         }
     }
 
-    function viewAttachment(filepath) {
+    function viewAttachment(filepath: string | null) {
         if (!filepath) {
             alert("No attachment");
             return;

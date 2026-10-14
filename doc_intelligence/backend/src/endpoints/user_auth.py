@@ -106,12 +106,17 @@ async def assign_role(
     if current_user.role != "Admin":
         raise HTTPException(status_code=403, detail="Not authorized.")
 
+    if current_user.username == data.username:
+        raise HTTPException(status_code=400, detail=f"{current_user.username} cannot change their own role to {data.role}")
+
     allowed_roles = ["Admin", "User"]
 
     if data.role not in allowed_roles:
         raise HTTPException(status_code=400, detail=f"Invalid role. Allowed roles are: {', '.join(allowed_roles)}")
+    
     result = await session.execute(select(Users).where(Users.username == data.username))
     user = result.scalar_one_or_none()
+
     if not user:
         raise HTTPException(status_code=404, detail="User not found.")
     
@@ -149,4 +154,4 @@ async def delete_user(
     await session.delete(user)
     await session.commit()
 
-    return {"message": f"User {data.username} deleted."}
+    return {"message": f"User {data.username} has been deleted."}

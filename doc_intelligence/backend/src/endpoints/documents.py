@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 from sqlalchemy import select
+from pathlib import Path
 import uuid
 import os
 import re
@@ -13,12 +14,30 @@ from src.services.model_dependencies.session_maker import get_async_session
 from src.services.rag.extraction import DocumentExtractor
 from src.services.rag.semantic_chunker import SemanticChunker
 from src.schemas.document_schema import DelDoc
+from src.services.auth.jwt_dependency import get_current_user
+from src.models.usersdb import Users
 
 upload_router = APIRouter(prefix="/upload", tags=["upload"])
 
 # ---------------------------------------------------------------------------------------
 # GET
 #----------------------------------------------------------------------------------------
+@upload_router.get("/recent_files")
+def recent_files():
+    base_dir = Path(__file__).parent / ".." / "models" / "files"
+
+    if not base_dir.exists():
+        return []
+
+    # Collect all files
+    all_files = [p for p in base_dir.glob("**/*") if p.is_file()]
+
+    # Sort by modification time (newest first)
+    all_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+
+    # Return top 5 as strings
+    return [str(p) for p in all_files[:5]]
+
 @upload_router.get("/files")
 def get_files():
     base_dir = os.path.join(os.path.dirname(__file__), "..", "models", "files")
@@ -106,14 +125,13 @@ async def get_versioned_path(
         if last_version_name:
             # delete vectors for last version
             action = await storage.delete_vectors_by_source(
-                document_id=document_id,
                 collection_name=collection_name,
                 file_name=last_version_name,
             )
 
             # log deletion
             vector = DeletedVectors(
-                id=uuid.UUID(document_id),
+                id=document_id,
                 upload_filename=file_name,
                 saved_filename=last_version_name,
                 file_path=os.path.join(base_dir, last_version_name),
@@ -160,7 +178,7 @@ async def upload_document(
         collection_name = "doc_intelligence"
 
         # Versioned path + Qdrant cleanup
-        saved_file = get_versioned_path(
+        saved_file = await get_versioned_path(
             document_id=doc_id,
             collection_name=collection_name,
             file_name=file.filename,
@@ -223,9 +241,14 @@ async def upload_document(
 @upload_router.delete("/delete_document")
 async def document_deletion(
     data: DelDoc,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: Users = Depends(get_current_user)
 ):
     try:
+        # Only Admins can delete Documents
+        if current_user.role != "Admin":
+            raise HTTPException(status_code=403, detail="Not authorized.")
+        
         # 1. Fetch document
         stmt = select(Document).where(Document.file_path == data.file_path)
         result = (await session.execute(stmt)).scalars().first()
@@ -240,21 +263,23 @@ async def document_deletion(
         file_path = result.file_path
         collection_name = "doc_intelligence"
 
-        # 2. Delete file from disk
-        if os.path.isfile(data.file_path):
-            os.remove(data.file_path)
-        else:
-            raise FileNotFoundError(f"No file at {file_path}")
-
-        # 3. Delete vectors
+        # 2. Delete vectors
         storage = SemanticChunker(session=session)
         await storage.delete_vectors_by_source(
-            document_id=str(id),
             collection_name=collection_name,
             file_name=saved_filename,
         )
 
-        # 4. Log deletion
+        # 3. Log deletion
+        vector = DeletedVectors(
+            id=id,
+            upload_filename=upload_filename,
+            saved_filename=saved_filename,
+            file_path=file_path,
+            collection_name=collection_name,
+            reason=f"User: {data.username}, Deletion reason: {data.reason}",
+        )
+
         rem_doc = DeletedDocument(
             id=id,
             upload_filename=upload_filename,
@@ -265,13 +290,17 @@ async def document_deletion(
             reason=data.reason,
         )
 
+        session.add(vector)
         session.add(rem_doc)
 
-        # 5. Remove original document record
-        await session.delete(result)
-
-        # 6. Commit everything atomically
+        # 4. Commit everything atomically
         await session.commit()
+
+        # 5. Delete file from disk
+        if os.path.isfile(data.file_path):
+            os.remove(data.file_path)
+        else:
+            raise FileNotFoundError(f"No file at {file_path}")
 
         return {"status": "deleted", "id": str(id)}
 

@@ -66,6 +66,8 @@ export default function Documents() {
     // --- File deletion ---
     const [showConfirm, setShowConfirm] = useState(false);
     const [pendingDeletePath, setPendingDeletePath] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState(false);
+    const [reason, setReason] = useState("");
 
     async function loadFiles() {
         setFilesLoading(true);
@@ -106,12 +108,12 @@ export default function Documents() {
     }
 
     useEffect(() => {
-        // Placeholder: load user info. Swap for your real auth logic.
+        // auth display logic
         try {
             setUsername(localStorage.getItem("username") || "");
-            setIsAdmin(localStorage.getItem("role") === "admin");
+            setIsAdmin(localStorage.getItem("role") === "Admin");
         } catch {
-            /* localStorage unavailable */
+            // Pass
         }
         loadFiles();
         loadAuditTrail();
@@ -156,14 +158,24 @@ export default function Documents() {
     }
 
     async function handleDelete(filePath: string) {
+        setDeleting(true)
+
+        if (!reason) {
+            alert("You can't delete a file without a reason");
+            return;
+        }
+
         try {
             const res = await fetch("http://localhost:8000/upload/delete_document", {
                 method: "DELETE",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+                },
                 body: JSON.stringify({
                     file_path: filePath,
                     username: username,
-                    reason: "manual deletion by admin",
+                    reason: reason,
                 }),
             });
 
@@ -178,6 +190,8 @@ export default function Documents() {
             loadAuditTrail();
         } catch {
             alert("Delete failed: could not reach server");
+        } finally {
+            setDeleting(false)
         }
     }
 
@@ -222,11 +236,10 @@ export default function Documents() {
 
                     {message && (
                         <p
-                            className={`mt-4 text-sm ${
-                                message.startsWith("Upload failed")
-                                    ? "text-red-400"
-                                    : "text-teal-300"
-                            }`}
+                            className={`mt-4 text-sm ${message.startsWith("Upload failed")
+                                ? "text-red-400"
+                                : "text-teal-300"
+                                }`}
                         >
                             {message}
                         </p>
@@ -253,7 +266,7 @@ export default function Documents() {
                         ) : filesError ? (
                             <p className="p-4 text-sm text-red-400">{filesError}</p>
                         ) : filteredFiles.length === 0 ? (
-                            <p className="p-4 text-sm text-gray-500">
+                            <p className="p-0 text-sm text-gray-500">
                                 {files.length === 0
                                     ? "No documents uploaded yet"
                                     : "No documents match your search"}
@@ -300,10 +313,17 @@ export default function Documents() {
                             <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-80 text-gray-200">
                                 <h3 className="text-lg font-semibold mb-4">Delete document?</h3>
 
-                                <p className="text-sm mb-6">
+                                <p className="text-sm mb-2">
                                     Are you sure you want to delete this document? This action
                                     cannot be undone.
                                 </p>
+                                <input
+                                    id="deleteReason"
+                                    value={reason}
+                                    onChange={(e) => setReason(e.target.value)}
+                                    className="mb-4 w-full text-black pl-2"
+                                    placeholder="reason for deletion"
+                                />
 
                                 <div className="flex justify-end gap-3">
                                     <button
@@ -326,7 +346,7 @@ export default function Documents() {
                                         }}
                                         className="px-3 py-1 rounded bg-red-600 hover:bg-red-500 text-sm"
                                     >
-                                        Delete
+                                        {deleting ? ".." : "Delete"}
                                     </button>
                                 </div>
                             </div>

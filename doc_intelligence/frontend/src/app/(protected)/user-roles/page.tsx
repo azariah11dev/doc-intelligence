@@ -7,6 +7,11 @@ export default function UserRolesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  // Confirmation modal state
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingDeleteUser, setPendingDeleteUser] = useState<string | null>(null);
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -37,17 +42,24 @@ export default function UserRolesPage() {
     setSaving(username);
 
     try {
-      const response = await fetch(
-        `http://localhost:8000/auth/assign_role?username=${username}&role=${newRole}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-          },
-        }
-      );
+      const response = await fetch("http://localhost:8000/auth/assign_role", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+        },
+        body: JSON.stringify({
+          username,
+          role: newRole,
+        }),
+      });
 
-      if (!response.ok) throw new Error("Role update failed");
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert("Error: " + data.detail);
+        return;
+      }
 
       setUsers((prev) =>
         prev.map((u) =>
@@ -55,33 +67,43 @@ export default function UserRolesPage() {
         )
       );
     } catch (err) {
+      alert("Error: Role update failed");
       console.error("Role update error:", err);
     } finally {
       setSaving(null);
     }
   };
 
-  const deleteUser = async () => {
+  const deleteUser = async (usernameToDelete: string) => {
+    setDeleting(usernameToDelete);
+
     try {
-      const res = await fetch(`http://localhost:8000/auth/delete_user`, {
+      const res = await fetch("http://localhost:8000/auth/delete_user", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("access_token")}`,
         },
         body: JSON.stringify({
-          username: localStorage.getItem("username"),
+          username: usernameToDelete,
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        alert(data.message || "User deleted");
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.detail || "Delete failed");
         return;
       }
+
+      alert(data.message || "User deleted");
+
+      setUsers((prev) => prev.filter((u) => u.username !== usernameToDelete));
     } catch (error) {
       alert("Oops, something went wrong");
       console.log(error);
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -127,15 +149,60 @@ export default function UserRolesPage() {
                 )}
 
                 <button
-                  onClick={deleteUser}
+                  onClick={() => {
+                    setPendingDeleteUser(user.username);
+                    setShowConfirm(true);
+                  }}
                   className="bg-[#0b0c10] border border-[#45a29e] text-[#c5c6c7] px-3 py-2 rounded 
                              transition-colors duration-300 hover:bg-[#1f2833] hover:border-[#66fcf1]"
                 >
                   Delete
                 </button>
+
+                {deleting === user.username && (
+                  <span className="text-sm text-red-400">Deleting...</span>
+                )}
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-gray-900 border border-gray-700 p-6 rounded-lg w-80 text-gray-200">
+            <h3 className="text-lg font-semibold mb-4">Delete user?</h3>
+
+            <p className="text-sm mb-6">
+              Are you sure you want to delete this user? This action cannot be undone.
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowConfirm(false);
+                  setPendingDeleteUser(null);
+                }}
+                className="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (pendingDeleteUser) {
+                    await deleteUser(pendingDeleteUser);
+                  }
+                  setShowConfirm(false);
+                  setPendingDeleteUser(null);
+                }}
+                className="px-3 py-1 rounded bg-red-600 hover:bg-red-500 text-sm"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

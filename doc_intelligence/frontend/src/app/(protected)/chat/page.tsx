@@ -1,20 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import modelProvider from "../comps/model_provider.json" with { type: "json" };
 
 type Message = { role: "user" | "assistant"; content: string };
 
-const model_provider: Record<string, string> = {
-    "GPT-4o": "openai",
-    "GPT-4o-mini": "openai",
-    "o3-mini": "openai",
-    "Gemini-1.5-Pro": "google",
-    "Gemini-1.5-Flash": "google",
-    "Gemini-2.0-Flash": "google",
-    "Claude-3.5-Sonnet": "claude",
-    "Claude-3.5-Haiku": "claude",
-    "Claude-3-Opus": "claude",
-    "qwen3.8:27b": "ollama"
-};
+const model_provider: Record<string, string> = modelProvider
 
 export default function Chat() {
     const [model, setModel] = useState("qwen3.8:27b");

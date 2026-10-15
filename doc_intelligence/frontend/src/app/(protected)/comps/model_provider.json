@@ -1,0 +1,12 @@
+{
+  "GPT-4o": "openai",
+  "GPT-4o-mini": "openai",
+  "o3-mini": "openai",
+  "Gemini-1.5-Pro": "google",
+  "Gemini-1.5-Flash": "google",
+  "Gemini-2.0-Flash": "google",
+  "Claude-3.5-Sonnet": "claude",
+  "Claude-3.5-Haiku": "claude",
+  "Claude-3-Opus": "claude",
+  "qwen3.8:27b": "ollama"
+}

@@ -211,6 +211,14 @@ export default function Documents() {
         );
     }, [auditRows, auditQuery]);
 
+    function viewDocumentattachment(filepath: string | null) {
+        if (!filepath) {
+            alert("No attachment");
+            return;
+        }
+        window.open(`http://localhost:8000/${filepath}`, "_blank");
+    }
+
     return (
         <div className="ml-48 p-10 space-y-10 max-w-4xl">
             {/* Upload Documents */}
@@ -275,6 +283,7 @@ export default function Documents() {
                             <ul className="divide-y divide-gray-800">
                                 {filteredFiles.map((f) => (
                                     <li
+                                        onDoubleClick={() => viewDocumentattachment(f.path)}
                                         key={f.path}
                                         className="px-4 py-2 text-sm hover:bg-gray-800/60 flex items-center justify-between gap-4"
                                     >

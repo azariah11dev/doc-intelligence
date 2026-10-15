@@ -71,6 +71,14 @@ export default function Dashboard() {
     window.location.href = "/documents"
   }
 
+  function viewDocumentattachment(filepath: string | null) {
+    if (!filepath) {
+      alert("No attachment");
+      return;
+    }
+    window.open(`http://localhost:8000/${filepath}`, "_blank");
+  }
+
   return (
     <div className="ml-48 px-10 py-12 text-[#c5c6c7]">
       <div className="mx-auto w-full max-w-5xl space-y-12">
@@ -102,8 +110,8 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-semibold">Recent Documents</h3>
             <button
-            onClick={docPagenav} 
-            className="text-sm text-[#45a29e] hover:text-[#66fcf1] transition-colors">
+              onClick={docPagenav}
+              className="text-sm text-[#45a29e] hover:text-[#66fcf1] transition-colors">
               View all →
             </button>
           </div>
@@ -124,6 +132,7 @@ export default function Dashboard() {
                 {files.map((f) => (
                   <li
                     key={f.path}
+                    onDoubleClick={() => viewDocumentattachment(f.path)}
                     className="px-6 py-3 text-sm hover:bg-gray-800/60 transition-colors flex items-center justify-between gap-6"
                   >
                     <span className="truncate font-medium">{f.name}</span>

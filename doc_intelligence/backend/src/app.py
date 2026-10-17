@@ -49,7 +49,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.get("/")
 def root():
     return {
-        "message": "Welcome to Doc Intelligence API!"
+        "message": "Welcome to Doc Intelligence API!",
+        "Access endpoint test at": "http://localhost:8000/docs"
     }
 
 app.include_router(contact_router)

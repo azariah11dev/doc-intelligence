@@ -13,16 +13,15 @@ from src.models.usersdb import Users
 from src.services.auth.jwt_dependency import get_current_user
 from src.services.model_dependencies.session_maker import get_async_session
 
-password_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
+password_context = CryptContext(schemes=["argon2"], deprecated="auto")
+transport = ASGITransport(app=app)
 
 # -------------------------------------------------------------------
 # USE CONFTEXT DB FIXTURES — DO NOT RECREATE ENGINE HERE
 # -------------------------------------------------------------------
-
 @pytest_asyncio.fixture
 async def client():
-    transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
@@ -30,10 +29,8 @@ async def client():
 # -------------------------------------------------------------------
 # USER / AUTH FIXTURES
 # -------------------------------------------------------------------
-
 def make_user(username, role="User", password="pass"):
     return Users(
-        id=str(uuid.uuid4()),
         username=username,
         email=f"{username}@test.com",
         role=role,
@@ -96,7 +93,6 @@ async def test_get_all_users_not_admin(client, test_session, act_as):
 # -------------------------------------------------------------------
 # TEST: /auth/register
 # -------------------------------------------------------------------
-
 @pytest.mark.asyncio
 async def test_register_success(client, test_session):
     payload = {"username": "newuser", "email": "new@test.com", "password": "mypassword"}
@@ -137,7 +133,6 @@ async def test_register_duplicate_email(client, test_session):
 # -------------------------------------------------------------------
 # TEST: /auth/login
 # -------------------------------------------------------------------
-
 @pytest.mark.asyncio
 async def test_login_success(client, test_session):
     test_session.add(make_user("loginuser", password="secret"))

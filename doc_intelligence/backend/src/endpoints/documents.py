@@ -19,43 +19,54 @@ from src.models.usersdb import Users
 
 upload_router = APIRouter(prefix="/upload", tags=["upload"])
 
+def get_base_dir() -> Path:
+    return Path(__file__).resolve().parent.parent / "models" / "files"
 # ---------------------------------------------------------------------------------------
 # GET
 #----------------------------------------------------------------------------------------
 @upload_router.get("/recent_files")
 def recent_files():
-    base_dir = Path(__file__).parent / ".." / "models" / "files"
+    try:
+        base_dir = get_base_dir()
 
-    if not base_dir.exists():
-        return []
+        if not base_dir.exists():
+            return []
 
-    # Collect all files
-    all_files = [p for p in base_dir.glob("**/*") if p.is_file()]
+        # Collect all files
+        all_files = [p for p in base_dir.glob("**/*") if p.is_file()]
 
-    # Sort by modification time (newest first)
-    all_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        # Sort by modification time (newest first)
+        all_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
 
-    # Return top 5 as strings
-    return [str(p) for p in all_files[:5]]
+        # Return top 5 as strings
+        return [str(p) for p in all_files[:5]]
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @upload_router.get("/files")
 def get_files():
-    base_dir = os.path.join(os.path.dirname(__file__), "..", "models", "files")
+    try:
+        base_dir = get_base_dir()
 
-    if not os.path.exists(base_dir):
-        return {}
+        if not base_dir.exists():
+            return {}
 
-    all_files = []
-    for root, _, files in os.walk(base_dir):
-        for f in files:
-            full_path = os.path.join(root, f)
-            if os.path.isfile(full_path):
-                all_files.append(full_path)
+        all_files = [
+            str(path)
+            for path in base_dir.rglob("*")
+            if path.is_file()
+        ]
 
-    return {
-        "files": all_files,
-        "count": len(all_files)
-    }
+        return {
+            "files": all_files,
+            "count": len(all_files)
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
     
 @upload_router.get("/audit_trail")
 async def retrieve_files(session: AsyncSession = Depends(get_async_session)):
@@ -78,9 +89,6 @@ async def retrieve_files(session: AsyncSession = Depends(get_async_session)):
             for row in rows
         ]
 
-    except HTTPException:
-        raise
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -92,7 +100,7 @@ class VersioningError(Exception):
     pass
 
 async def get_versioned_path(
-    document_id: str,
+    document_id: uuid.UUID,
     collection_name: str,
     file_name: str,
     session: AsyncSession,
@@ -100,8 +108,8 @@ async def get_versioned_path(
     try:
         storage = SemanticChunker(session=session)
 
-        base_dir = os.path.join(os.path.dirname(__file__), "..", "models", "files")
-        os.makedirs(base_dir, exist_ok=True)
+        base_dir = get_base_dir()
+        base_dir.mkdir(parents=True, exist_ok=True)
 
         stem, ext = os.path.splitext(file_name)
 
@@ -112,8 +120,10 @@ async def get_versioned_path(
         pattern = re.compile(rf"^{re.escape(name)}_v(\d+){re.escape(ext)}$")
 
         existing_versions = []
-        for f in os.listdir(base_dir):
-            m = pattern.match(f)
+        for file in base_dir.iterdir():
+            if not file.is_file():
+                continue
+            m = pattern.match(file.name)
             if m:
                 existing_versions.append(int(m.group(1)))
 
@@ -134,7 +144,7 @@ async def get_versioned_path(
                 id=document_id,
                 upload_filename=file_name,
                 saved_filename=last_version_name,
-                file_path=os.path.join(base_dir, last_version_name),
+                file_path=str(base_dir / last_version_name),
                 collection_name=collection_name,
                 reason=f"automatic deletion of last version {last_version}",
             )
@@ -147,7 +157,7 @@ async def get_versioned_path(
 
         return {
             "last_version_name": last_version_name,
-            "path": os.path.join(base_dir, next_version_name),
+            "path": str(base_dir / next_version_name),
             "file_name": next_version_name,
             "action": action,
         }
@@ -174,7 +184,7 @@ async def upload_document(
         validate_file_type(magic_type, file.filename)
 
         # IDs and collection
-        doc_id = str(uuid.uuid4())
+        doc_id = uuid.uuid4()
         collection_name = "doc_intelligence"
 
         # Versioned path + Qdrant cleanup
@@ -221,7 +231,7 @@ async def upload_document(
         )
 
         return {
-            "id": doc_id,
+            "id": str(doc_id),
             "filename": saved_file["file_name"],
             "file_type": magic_type,
             "file_size": file_size,
@@ -231,6 +241,9 @@ async def upload_document(
 
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    except HTTPException:
+        raise
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

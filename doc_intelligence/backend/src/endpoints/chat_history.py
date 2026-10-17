@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import uuid
 
 from src.models.user_querydb import Conversation, ChatMessage, MessageContext
 from src.services.model_dependencies.session_maker import get_async_session
@@ -35,7 +36,7 @@ async def list_conversations(
 
 @chat_router.get("/conversation/{conversation_id}")
 async def get_conversation_history(
-    conversation_id: str,
+    conversation_id: uuid.UUID,
     session: AsyncSession = Depends(get_async_session)
 ):
     try:
@@ -87,6 +88,8 @@ async def get_conversation_history(
                 for m in messages
             ]
         }
+    except HTTPException:
+        raise
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

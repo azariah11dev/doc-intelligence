@@ -70,7 +70,7 @@ class SemanticChunker:
     # ------------------------------------------------------------------
     async def update_document_status(
         self,
-        document_id: str,
+        document_id: uuid.UUID,
         status: str,
         error: Optional[str] = None,
     ) -> None:
@@ -390,7 +390,7 @@ class SemanticChunker:
         document_text: str,
         file_name: str,
         batch_size: int = 256,
-        document_id_for_status: Optional[str] = None,
+        document_id_for_status: Optional[uuid.UUID] = None,
     ) -> None:
         if not document_text or not document_text.strip():
             return

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+import uuid
 
 from src.services.rag.retrieval_engine import queryRetrieval
 from src.schemas.response_gen import QueryRequest
@@ -15,7 +16,7 @@ async def stream_answer(
     rewrite_model: str | None,
     generation_model: str,
     provider: str,
-    id: str | None
+    id: uuid.UUID | None
 ):
     try:
         async for chunk in rag.answer(
@@ -27,6 +28,7 @@ async def stream_answer(
             id=id
         ):
             yield chunk
+            
     except Exception as exc:
         yield f"\n\n[Error generating answer: {exc}]"
 

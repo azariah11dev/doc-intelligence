@@ -2,7 +2,6 @@ from fastapi import APIRouter,UploadFile, File, HTTPException, Depends, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from pathlib import Path
 from sqlalchemy import select, func
-import os
 import uuid
 
 from src.schemas.contacts_schema import ContactInfo
@@ -92,17 +91,21 @@ async def update_status(
 
     except HTTPException:
         raise
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     
 # ---------------------------------------------------------------------------------------
 # POST
 #----------------------------------------------------------------------------------------
+def get_base_dir():
+    return Path(__file__).resolve().parent.parent / "models" / "tickets"
+
 def attached_file(file: UploadFile | None) -> str | None:
     if file is None:
         return None
 
-    base_dir = Path(__file__).resolve().parent.parent / "models" / "tickets"
+    base_dir = get_base_dir()
     base_dir.mkdir(parents=True, exist_ok=True)
 
     filename = file.filename.replace(" ", "_")

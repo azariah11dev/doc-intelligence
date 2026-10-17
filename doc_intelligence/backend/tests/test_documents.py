@@ -1,45 +1,40 @@
 import pytest
-from httpx import AsyncClient
+import pytest_asyncio
+from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession
-from pathlib import Path
-import uuid
-import os
+from datetime import datetime, timezone
 from sqlalchemy import select
+import uuid
+from passlib.context import CryptContext
 
 # MUST match conftest + app imports
 from src.app import app
+from src.endpoints import documents
 from src.models.documentdb import Document
 from src.models.deldocdb import DeletedVectors, DeletedDocument
 from src.models.usersdb import Users
-from src.services.model_dependencies.session_maker import async_session_maker
 from src.services.auth.jwt_dependency import get_current_user
 
+
+transport = ASGITransport(app=app)
+password_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 # -------------------------------------------------------------------
 # FIXTURES
 # -------------------------------------------------------------------
-@pytest.fixture
-async def test_session():
-    async with async_session_maker() as session:
-        yield session
-        await session.rollback()
-
-
-@pytest.fixture
+@pytest_asyncio.fixture
 async def admin_user(test_session: AsyncSession):
     user = Users(
-        id=str(uuid.uuid4()),
         username="admin",
         role="Admin",
         email="admin@test.com",
-        password="hashed"
+        password_hash=password_context.hash("hashed")
     )
     test_session.add(user)
     await test_session.commit()
     return user
 
-
-@pytest.fixture
+@pytest_asyncio.fixture
 async def override_get_current_user(admin_user):
     async def _override():
         return admin_user
@@ -50,47 +45,44 @@ async def override_get_current_user(admin_user):
     app.dependency_overrides.clear()
 
 
+@pytest.fixture
+def temp_files_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        documents,
+        "get_base_dir",
+        lambda: tmp_path
+    )
+
+    return tmp_path
+
 # -------------------------------------------------------------------
 # TEST: /upload/recent_files
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_recent_files(tmp_path: Path):
-    f1 = tmp_path / "a.txt"
-    f2 = tmp_path / "b.txt"
-    f1.write_text("hello")
-    f2.write_text("world")
+async def test_recent_files(temp_files_dir):
+    (temp_files_dir / "a.txt").write_text("hello")
+    (temp_files_dir / "b.txt").write_text("world")
 
-    base_dir = Path(__file__).parent.parent / "src" / "models" / "files"
-    base_dir.mkdir(parents=True, exist_ok=True)
-
-    (base_dir / "a.txt").write_text("hello")
-    (base_dir / "b.txt").write_text("world")
-
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         res = await ac.get("/upload/recent_files")
 
-    assert res.status_code == 200
-    assert len(res.json()) >= 2
-
+    assert res.status_code == 200, res.text
+    assert len(res.json()) == 2
 
 # -------------------------------------------------------------------
 # TEST: /upload/files
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_get_files(tmp_path: Path):
-    base_dir = Path(__file__).parent.parent / "src" / "models" / "files"
-    base_dir.mkdir(parents=True, exist_ok=True)
+async def test_get_files(temp_files_dir):
+    (temp_files_dir / "x.txt").write_text("data")
 
-    (base_dir / "x.txt").write_text("data")
-
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         res = await ac.get("/upload/files")
 
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     data = res.json()
     assert "files" in data
-    assert data["count"] >= 1
-
+    assert data["count"] == 1
 
 # -------------------------------------------------------------------
 # TEST: /upload/audit_trail
@@ -98,77 +90,93 @@ async def test_get_files(tmp_path: Path):
 @pytest.mark.asyncio
 async def test_audit_trail(test_session: AsyncSession):
     doc = Document(
-        id=str(uuid.uuid4()),
+        id=uuid.uuid4(),
         upload_filename="test.pdf",
         saved_filename="test_v1.pdf",
         file_type="application/pdf",
         file_size=123,
         file_path="/tmp/test_v1.pdf",
         action=None,
-        upload_ts=None,
+        upload_ts=datetime.now(timezone.utc),
         status="UPLOADED",
         error=None
     )
     test_session.add(doc)
     await test_session.commit()
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         res = await ac.get("/upload/audit_trail")
 
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     assert len(res.json()) >= 1
-
 
 # -------------------------------------------------------------------
 # TEST: /upload/documents (file upload)
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_upload_document(tmp_path: Path, test_session: AsyncSession, monkeypatch):
-    file_path = tmp_path / "sample.txt"
-    file_path.write_text("hello world")
+async def test_upload_document(temp_files_dir, test_session: AsyncSession, monkeypatch):
+    (temp_files_dir / "sample.txt").write_text("hello world")
+    file_path = temp_files_dir / "sample.txt"
 
     async def fake_extract(*args, **kwargs):
         return None
+
+    async def fake_delete_vectors(*args, **kwargs):
+        return True
 
     monkeypatch.setattr(
         "src.services.rag.extraction.DocumentExtractor.extract_text",
         fake_extract
     )
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    monkeypatch.setattr(
+        "src.services.rag.semantic_chunker.SemanticChunker.delete_vectors_by_source",
+        fake_delete_vectors
+    )
+
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         with file_path.open("rb") as f:
             res = await ac.post(
                 "/upload/documents",
                 files={"file": ("sample.txt", f, "text/plain")}
             )
 
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     data = res.json()
     assert data["status"] == "UPLOADED"
     assert "filename" in data
-
 
 # -------------------------------------------------------------------
 # TEST: /upload/delete_document (admin only)
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_delete_document(
-    tmp_path: Path,
+    temp_files_dir,
     test_session: AsyncSession,
-    override_get_current_user
+    override_get_current_user,
+    monkeypatch,
 ):
-    file_path = tmp_path / "delete_me.txt"
-    file_path.write_text("delete this")
+    async def fake_delete_vectors(*args, **kwargs):
+        return True
+
+    monkeypatch.setattr(
+        documents.SemanticChunker,
+        "delete_vectors_by_source",
+        fake_delete_vectors,
+    )
+
+    (temp_files_dir / "delete_me.txt").write_text("delete this")
+    file_path = temp_files_dir / "delete_me.txt"
 
     doc = Document(
-        id=str(uuid.uuid4()),
+        id=uuid.uuid4(),
         upload_filename="delete_me.txt",
         saved_filename="delete_me_v1.txt",
         file_type="text/plain",
         file_size=12,
         file_path=str(file_path),
         action=None,
-        upload_ts=None,
+        upload_ts=datetime.now(timezone.utc),
         status="UPLOADED",
         error=None
     )
@@ -181,10 +189,10 @@ async def test_delete_document(
         "file_path": str(file_path)
     }
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        res = await ac.delete("/upload/delete_document", json=payload)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        res = await ac.request("DELETE", "/upload/delete_document", json=payload)
 
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     assert res.json()["status"] == "deleted"
 
     assert not file_path.exists()

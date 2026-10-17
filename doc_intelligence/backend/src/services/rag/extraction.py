@@ -1,4 +1,5 @@
 import re
+import uuid
 import unicodedata
 from docx import Document as DocxDocument
 from sqlalchemy import select
@@ -12,7 +13,7 @@ from src.services.rag.semantic_chunker import SemanticChunker
 class DocumentExtractor:
     def __init__(
         self, 
-        document_id: str,
+        document_id: uuid.UUID,
         file_name: str, 
         file_path: str,
         session: AsyncSession

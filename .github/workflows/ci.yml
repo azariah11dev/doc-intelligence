@@ -26,7 +26,7 @@ jobs:
 
       - name: Run backend tests
         env:
-          DATABASE_URL: sqlite+aiosqlite:///:memory:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
         working-directory: doc_intelligence/backend
         run: uv run pytest
 

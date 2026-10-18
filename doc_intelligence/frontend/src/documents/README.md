@@ -1,598 +1,97 @@
-# Doc Intelligence Frontend
+# Frontend
 
-# Project Structure
+Next.js 16 / React 19 / TypeScript / Tailwind app for chatting with your documents, managing uploads, and handling support tickets.
 
-```text
-frontend/
-├── __tests__/
-│   ├── components/
-│   │   ├── Navbar.test.tsx
-│   │   └── SideBar.test.tsx
-│   ├── protected/
-│   │   ├── Chat.test.tsx
-│   │   ├── ChatHistory.test.tsx
-│   │   ├── Dashboard.test.tsx
-│   │   ├── Documents.test.tsx
-│   │   ├── SubmittedTickets.test.tsx
-│   │   ├── TicketPage.test.tsx
-│   │   ├── UserRolesPage.test.tsx
-│   │   └── ViewAll.test.tsx
-│   └── public/
-│       ├── AboutPage.test.tsx
-│       ├── ContactPage.test.tsx
-│       ├── DemoPage.test.tsx
-│       ├── FeaturesPage.test.tsx
-│       ├── LandingPage.test.tsx
-│       ├── LoginPage.test.tsx
-│       └── SignUpPage.test.tsx
-├── eslint.config.mjs
-├── jest.config.ts
-├── jest.setup.ts
-├── next.config.js
-├── package.json
-├── package-lock.json
-├── playwright.config.ts
-├── public/
-│   ├── aboutPage.jpg
-│   ├── authPage.jpg
-│   ├── contactsPage.jpg
-│   ├── featuresPage.jpg
-│   ├── landingPage.jpg
-│   └── logo.png
-├── src/
-│   ├── app/
-│   │   ├── (protected)/
-│   │   │   ├── chat/
-│   │   │   │   └── page.tsx
-│   │   │   ├── chat_history/
-│   │   │   │   └── page.tsx
-│   │   │   ├── comps/
-│   │   │   │   ├── model_provider.json
-│   │   │   │   └── sideBar.tsx
-│   │   │   ├── dashboard/
-│   │   │   │   └── page.tsx
-│   │   │   ├── documents/
-│   │   │   │   └── page.tsx
-│   │   │   ├── layout.tsx
-│   │   │   ├── submitted_tickets/
-│   │   │   │   └── page.tsx
-│   │   │   ├── ticket/
-│   │   │   │   └── page.tsx
-│   │   │   ├── user-roles/
-│   │   │   │   └── page.tsx
-│   │   │   └── view_all/
-│   │   │       └── page.tsx
-│   │   ├── (public)/
-│   │   │   ├── about/
-│   │   │   │   └── page.tsx
-│   │   │   ├── components/
-│   │   │   │   └── navBar.tsx
-│   │   │   ├── contacts/
-│   │   │   │   └── page.tsx
-│   │   │   ├── demo/
-│   │   │   │   └── page.tsx
-│   │   │   ├── features/
-│   │   │   │   └── page.tsx
-│   │   │   ├── layout.tsx
-│   │   │   ├── login/
-│   │   │   │   └── page.tsx
-│   │   │   ├── page.tsx
-│   │   │   └── signup/
-│   │   │       └── page.tsx
-│   │   ├── globals.css
-│   │   └── layout.tsx
-│   └── documents/
-│       ├── outline.md
-│       ├── tailwind_guide.txt
-│       └── users.json
-├── tailwind.config.js
-├── tests/
-│   ├── components/
-│   │   ├── navbar.spec.ts
-│   │   └── sidebar.spec.ts
-│   ├── protected/
-│   │   ├── chat-history.spec.ts
-│   │   ├── chat-page.spec.ts
-│   │   ├── dashboard.spec.ts
-│   │   ├── documents.spec.ts
-│   │   ├── submitted-tickets.spec.ts
-│   │   ├── ticket-page.spec.ts
-│   │   ├── user-roles.spec.ts
-│   │   └── view-all.spec.ts
-│   └── public/
-│       ├── about-page.spec.ts
-│       ├── contact-page.spec.ts
-│       ├── demo-page.spec.ts
-│       ├── features-page.spec.ts
-│       ├── landing-page.spec.ts
-│       ├── login-page.spec.ts
-│       └── signup-page.spec.ts
-└── tsconfig.json
-```
+## Requirements
 
----
+- Node 20+ and npm
+- The backend running on http://localhost:8000 (see [backend/README.md](../backend/README.md))
 
-# Prerequisites
-
-Install:
-
-- Node.js 20+
-- npm 10+
-
-Verify installation:
+## Setup
 
 ```bash
-node -v
-npm -v
+npm ci
+npm run dev        # http://localhost:3000
 ```
 
----
+## Scripts
 
-# Installation
+| Command | What it does |
+|---|---|
+| `npm run dev` | Development server |
+| `npm run build` / `npm start` | Production build and server |
+| `npm test` | Jest unit tests (`__tests__/`) |
+| `npm run test:e2e` | Playwright end-to-end tests (`tests/`) |
 
-Clone the repository and install dependencies:
+`eslint.config.mjs` exists, but there is no `lint` script yet. Add `"lint": "eslint"` to `package.json` if you want one.
 
-```bash
-npm install
-```
+## Configuration
 
----
+There is no `.env` for the frontend. The backend URL `http://localhost:8000` is hardcoded in these files, so change it in each place if your API runs elsewhere:
 
-# Running the Application
+- `src/app/(protected)/chat/page.tsx`
+- `src/app/(protected)/chat_history/page.tsx`
+- `src/app/(protected)/view_all/page.tsx`
+- `src/app/(protected)/submitted_tickets/page.tsx`
 
-Development mode:
+(Other pages call the API too; search for `localhost:8000`.) The backend only allows CORS from `localhost:3000`/`5500`, so a different frontend origin also needs a change in `backend/src/app.py`.
 
-```bash
-npm run dev
-```
+## Routes
 
-Application URL:
+| Group | Routes |
+|---|---|
+| Public (`src/app/(public)`) | `/`, `/about`, `/features`, `/contacts`, `/demo`, `/login`, `/signup` |
+| Protected (`src/app/(protected)`) | `/dashboard`, `/documents`, `/chat`, `/chat_history`, `/ticket`, `/submitted_tickets`, `/view_all`, `/user-roles` |
 
-```text
-http://localhost:3000
-```
+Admin-only pages such as `/user-roles` rely on the role the backend returns at login. Real enforcement is on the backend.
 
-Production build:
+## Auth
 
-```bash
-npm run build
-npm start
-```
+Login stores `access_token`, `username`, `role` and `email` in `localStorage`; the sidebar's logout clears them. Chat also uses `conversation_id` and `open_conversation_id` to resume conversations from history.
 
----
+## Changing the chat models
 
-# Linting
+- **Model list and provider mapping:** `src/app/(protected)/comps/model_provider.json` (`"model name": "ollama" | "openai" | "claude" | "google"`).
+- **Default model and rewrite model:** `useState("qwen3.8:27b")` and `REWRITE_MODEL = "qwen2.5:3b"` at the top of `chat/page.tsx`. "Accuracy mode" turns query rewriting on or off.
+- **Enabling OpenAI / Anthropic / Gemini:** the `chat/page.tsx` handler currently shows an alert and returns for those providers. Remove that block and set the matching API key in the backend `.env`. The non-Ollama backend adapters have not been verified end to end.
 
-Run ESLint:
+## Tests
 
-```bash
-npm run lint
-```
-
----
-
-# Jest Testing
-
-Jest is used for:
-
-- Component testing
-- State testing
-- Form validation
-- Local storage testing
-- API mocking
-
-Location:
-
-```text
-__tests__/
-```
-
-## Run All Jest Tests
+**Jest + React Testing Library** (`__tests__/`): component and page tests with mocked `fetch` and `localStorage`. Config is `jest.config.cjs` (it ignores `tests/`).
 
 ```bash
 npm test
-```
-
-or
-
-```bash
-npx jest
-```
-
-## Run Specific Test Suite
-
-Example:
-
-```bash
-npx jest __tests__/public/LoginPage.test.tsx
-```
-
-```bash
-npx jest __tests__/protected/Documents.test.tsx
-```
-
-## Watch Mode
-
-```bash
+npx jest __tests__/public/LoginPage.test.tsx    # one file
 npm test -- --watch
 ```
 
----
-
-# Playwright Testing
-
-Playwright is used for:
-
-- End-to-end testing
-- Navigation testing
-- Browser interactions
-- Local storage validation
-- API route mocking
-
-Location:
-
-```text
-tests/
-```
-
-## Install Browsers
-
-Run once:
+**Playwright** (`tests/`): browser tests that start `npm run dev` automatically. `tests/fixtures/authenticated.ts` sets a fake `access_token` and mocks the file and conversation endpoints, so no backend is needed.
 
 ```bash
-npx playwright install
-```
-
-## Run All E2E Tests
-
-```bash
-npx playwright test
-```
-
-## Run Single Spec
-
-```bash
-npx playwright test tests/public/login-page.spec.ts
-```
-
-```bash
-npx playwright test tests/protected/chat-page.spec.ts
-```
-
-## Run in UI Mode
-
-```bash
+npx playwright install        # once
+npm run test:e2e
 npx playwright test --ui
-```
-
-## Run in Browser
-
-```bash
-npx playwright test --headed
-```
-
-## View Test Report
-
-```bash
 npx playwright show-report
 ```
 
----
+CI runs Jest and Playwright on every push (see `.github/workflows/ci.yml`).
 
-# Test Coverage
-
-## Public Pages
-
-### Jest
+## Project structure
 
 ```text
-AboutPage.test.tsx
-ContactPage.test.tsx
-DemoPage.test.tsx
-FeaturesPage.test.tsx
-LandingPage.test.tsx
-LoginPage.test.tsx
-SignUpPage.test.tsx
+frontend/
+├── src/app/
+│   ├── (public)/          Landing, auth, about, features, contacts, demo (+ navBar)
+│   ├── (protected)/       Chat, documents, dashboard, history, tickets, roles (+ sideBar, layout)
+│   │   └── comps/         sideBar.tsx, model_provider.json
+│   ├── layout.tsx
+│   └── globals.css
+├── __tests__/             Jest tests (components, protected, public)
+├── tests/                 Playwright specs and fixtures
+├── public/                Images and logo
+└── jest.config.cjs, playwright.config.ts, tailwind.config.js, next.config.js
 ```
 
-### Playwright
+## Notes
 
-```text
-about-page.spec.ts
-contact-page.spec.ts
-demo-page.spec.ts
-features-page.spec.ts
-landing-page.spec.ts
-login-page.spec.ts
-signup-page.spec.ts
-```
-
----
-
-## Protected Pages
-
-### Jest
-
-```text
-Chat.test.tsx
-ChatHistory.test.tsx
-Dashboard.test.tsx
-Documents.test.tsx
-SubmittedTickets.test.tsx
-TicketPage.test.tsx
-UserRolesPage.test.tsx
-ViewAll.test.tsx
-```
-
-### Playwright
-
-```text
-chat-page.spec.ts
-chat-history.spec.ts
-dashboard.spec.ts
-documents.spec.ts
-submitted-tickets.spec.ts
-ticket-page.spec.ts
-user-roles.spec.ts
-view-all.spec.ts
-```
-
----
-
-## Shared Components
-
-### Jest
-
-```text
-Navbar.test.tsx
-SideBar.test.tsx
-```
-
-### Playwright
-
-```text
-navbar.spec.ts
-sidebar.spec.ts
-```
-
----
-
-# Jest Configuration
-
-Configuration:
-
-```text
-jest.config.ts
-```
-
-Global setup:
-
-```text
-jest.setup.ts
-```
-
-Recommended configuration:
-
-```ts
-import "@testing-library/jest-dom";
-
-beforeEach(() => {
-  jest.clearAllMocks();
-});
-
-afterEach(() => {
-  jest.restoreAllMocks();
-});
-```
-
----
-
-# Playwright Configuration
-
-Configuration:
-
-```text
-playwright.config.ts
-```
-
-Example:
-
-```ts
-import { defineConfig } from "@playwright/test";
-
-export default defineConfig({
-  testDir: "./tests",
-  use: {
-    baseURL: "http://localhost:3000",
-    headless: true,
-  },
-});
-```
-
----
-
-# Mocking API Requests
-
-## Jest
-
-```ts
-global.fetch = jest.fn().mockResolvedValue({
-  ok: true,
-  json: async () => ({
-    success: true,
-  }),
-});
-```
-
-## Playwright
-
-```ts
-await page.route(
-  "**/auth/login",
-  async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        access_token: "token",
-      }),
-    });
-  }
-);
-```
-
----
-
-# Local Storage Testing
-
-## Jest
-
-```ts
-Storage.prototype.getItem = jest.fn((key) => {
-  if (key === "username") return "john";
-  return null;
-});
-```
-
-## Playwright
-
-```ts
-await page.addInitScript(() => {
-  localStorage.setItem("username", "john");
-});
-```
-
----
-
-# Recommended Workflow
-
-## During Development
-
-Run:
-
-```bash
-npm run dev
-```
-
-In a separate terminal:
-
-```bash
-npm test -- --watch
-```
-
----
-
-## Before Commit
-
-Run:
-
-```bash
-npm run lint
-npm test
-npx playwright test
-```
-
----
-
-## Before Pull Request
-
-Verify:
-
-- Build succeeds
-- Lint passes
-- Jest passes
-- Playwright passes
-
-Run:
-
-```bash
-npm run build
-npm run lint
-npm test
-npx playwright test
-```
-
----
-
-# Troubleshooting
-
-## Jest Cannot Find Fetch
-
-Mock it:
-
-```ts
-global.fetch = jest.fn();
-```
-
-## Playwright Navigation Fails
-
-Ensure the Next.js application is running:
-
-```bash
-npm run dev
-```
-
-before running:
-
-```bash
-npx playwright test
-```
-
-## Local Storage Issues
-
-Set values before page load:
-
-```ts
-await page.addInitScript(() => {
-  localStorage.setItem("role", "Admin");
-});
-```
-
----
-
-# Architecture
-
-Update available models here
-
-```text
-doc_intelligence\frontend\src\app\(protected)\comps\model_provider.json
-```
-
-## Public Routes
-
-```text
-/
-/about
-/features
-/contacts
-/demo
-/login
-/signup
-```
-
-## Protected Routes
-
-```text
-/dashboard
-/documents
-/chat
-/chat_history
-/ticket
-/submitted_tickets
-/view_all
-/user-roles
-```
-
----
-
-# Tech Stack
-
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-- Jest
-- React Testing Library
-- Playwright
-
----
+`src/documents/users.json` holds sample accounts with plaintext passwords. Don't reuse those credentials anywhere real, and consider removing the file from the repo.

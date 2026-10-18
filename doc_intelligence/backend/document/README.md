@@ -1,285 +1,145 @@
-# Backend Run Instructions
+# Backend
 
-## Prerequisites
+FastAPI service for authentication, document ingestion, retrieval-augmented chat, conversation history and support tickets.
 
-- Python 3.13
-- PostgreSQL
-- Docker
-- UV package manager
+## Requirements
 
----
+- Python 3.13 and [uv](https://docs.astral.sh/uv/)
+- Docker (PostgreSQL 16 and Qdrant)
+- [Ollama](https://ollama.com) for local generation and query rewriting
+- `libmagic` on Linux/macOS (`apt install libmagic1` / `brew install libmagic`); Windows uses `python-magic-bin` automatically
 
-## 1. Clone Repository
-
-```bash
-git clone <repository-url>
-cd doc_intelligence
-cd backend
-```
-
----
-
-## 2. Create Environment File
-
-Copy the example environment file:
+## Setup (backend on your machine, databases in Docker)
 
 ```bash
 cp .env.example .env
+docker compose up -d postgres qdrant
+uv sync
+uv run python main.py
 ```
 
-Update values as needed:
+The API is at http://localhost:8000 and the interactive docs at http://localhost:8000/docs.
+
+Because the backend runs on your machine here, edit `.env` so the hostnames point at `localhost` instead of Docker service names:
 
 ```env
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=password
-POSTGRES_DB=DocIntelligenceDB
-
-JWT_SECRET_KEY=your_secret_key
-
-OLLAMA_HOST=http://host.docker.internal:11435
+DATABASE_URL=postgresql+asyncpg://postgres:<your password>@localhost:5432/DocIntelligenceDB
+QDRANT_URL=http://localhost:6333
+OLLAMA_HOST=http://localhost:11434
 ```
-ollama default is internal:11435 but if port is taken you'll have to create your own in environment variables
 
----
+Tables are created automatically at startup.
 
-## 3. Install Dependencies
+## Configuration
 
-Using UV:
+Settings are read from `.env` (see `.env.example`).
+
+| Variable | Required | Description |
+|---|---|---|
+| `SECRET_KEY` | yes | JWT signing key. Generate one with `openssl rand -hex 32` |
+| `ALGORITHM` | yes | JWT algorithm, `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | yes | Token lifetime in minutes |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | yes | Used by Docker Compose to create the database |
+| `DATABASE_URL` | yes | Async SQLAlchemy URL (`postgresql+asyncpg://...`). Keep the password in sync with `POSTGRES_PASSWORD` |
+| `QDRANT_URL` | yes | Qdrant HTTP endpoint |
+| `OLLAMA_HOST` | for local LLMs | Ollama endpoint |
+| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` | optional | Only needed if you enable those providers |
+
+Never commit `.env`; it is git-ignored.
+
+## Models
+
+Models download on first use, a few GB in total:
+
+- Embeddings: `BAAI/bge-m3` (dense) plus a fastembed sparse model
+- Reranker: `BAAI/bge-reranker-base`
+- Ollama: `ollama pull qwen2.5:3b` for query rewriting, and the chat model you select in the UI (default `qwen3.8:27b`)
+
+## Create your first Admin
+
+Registration always creates a `User`, and only an Admin can promote others, so promote the first account in the database:
 
 ```bash
-uv sync
+docker exec -it DocIntelligenceDB_Postgres psql -U postgres -d DocIntelligenceDB \
+  -c "UPDATE users SET role='Admin' WHERE username='<your username>';"
 ```
 
-Activate virtual environment:
+Log out and back in so the UI picks up the new role. Admins can upload and delete documents, list users, and change roles.
 
-### Windows
+## Running everything in Docker
 
 ```bash
-.venv\Scripts\activate
+docker compose up -d --build
 ```
 
-### Linux / macOS
+This also starts the `app` service on port 8000. In this mode the `.env.example` hostnames (`postgres`, `qdrant`) are correct, and the compose file sets the container's `OLLAMA_HOST` to `http://host.docker.internal:11435`, overriding the value in `.env`. If your Ollama listens on its default port 11434, change that line in `docker-compose.yml`.
 
-```bash
-source .venv/bin/activate
+Useful Docker and psql commands are in `document/docker.txt` and `document/postgres.txt`.
+
+## API overview
+
+Full schemas are in `/docs`. "Auth" shows what the code enforces today.
+
+| Group | Endpoint | Auth |
+|---|---|---|
+| Auth | `POST /auth/register`, `POST /auth/login` | none |
+| | `GET /auth/all_users`, `PUT /auth/assign_role`, `DELETE /auth/delete_user` | Admin |
+| Documents | `POST /upload/documents` (PDF, DOCX, TXT; max 10 MB) | none |
+| | `GET /upload/files`, `/upload/recent_files`, `/upload/audit_trail`, `/upload/files/view/{filename}` | none |
+| | `DELETE /upload/delete_document` | Admin |
+| Chat | `POST /response_generation/answer` (streamed `text/plain`) | none |
+| | `GET /chat/conversations`, `/chat/conversation/{id}` | none |
+| Tickets | `POST /contact/ticket`, `POST /contact/`, `GET /contact/open_tickets`, `/all_tickets`, `PUT /contact/update_status` | none |
+
+`POST /response_generation/answer` takes:
+
+```json
+{
+  "question": "What does the contract say about termination?",
+  "username": "alex",
+  "rewrite_model": "qwen2.5:3b",
+  "generation_model": "qwen3.8:27b",
+  "provider": "ollama",
+  "id": null
+}
 ```
 
----
+Set `rewrite_model` to `null` to skip query rewriting. `id` is an existing conversation ID, or `null` to start one. The stream is the answer text, then a `Sources: ...` line, then a final JSON chunk `{"meta": {"conversation_id": "..."}}` that the frontend strips out.
 
-## 4. Build Images
-
-Using Docker:
-
-```bash
-docker docker compose up --build
-```
-
-Verify database is running:
-
-```bash
-docker ps
-```
-
---
-
-## 5. Start Docker
-
-Using Docker:
-
-```bash
-docker compose up
-```
-
-Verify database is running:
-
-```bash
-docker ps
-```
-
----
-
-## 6. Run Backend
-
-From project root:
-```bash
-uv run main.py
-```
-or
-
-```bash
-uvicorn src.app:app --reload
-```
-
-Server will be available at:
+## How the code is organized
 
 ```text
-http://localhost:8000
+src/
+├── app.py                  FastAPI app, CORS, router registration
+├── endpoints/              Routes: user_auth, documents, response_generation, chat_history, contacts
+├── models/                 SQLAlchemy tables (users, documents, deleted docs, conversations, tickets)
+│   └── files/              Uploaded documents are saved here
+├── schemas/                Pydantic request models, env settings, file validation
+└── services/
+    ├── auth/               JWT creation and the get_current_user dependency
+    ├── model_dependencies/ Engine and async session
+    └── rag/
+        ├── extraction.py       Text extraction (pypdf / pdfminer / python-docx)
+        ├── semantic_chunker.py Section- and table-aware chunking, Qdrant writes
+        ├── retrieval_engine.py Hybrid search, RRF, reranking, source formatting, chat logging
+        └── llm.py              Prompt builders and provider clients
 ```
 
----
-
-## 7. API Documentation
-
-Swagger UI:
-
-```text
-http://localhost:8000/docs
-```
-
-ReDoc:
-
-```text
-http://localhost:8000/redoc
-```
-
----
-
-# Running Tests
-
-Run all tests:
+## Tests
 
 ```bash
 uv run pytest
 ```
 
-Run with verbose output:
+The suite uses in-memory SQLite and needs no Postgres, Qdrant or Ollama. CI runs it with `DATABASE_URL`, `SECRET_KEY`, `ALGORITHM` and `ACCESS_TOKEN_EXPIRE_MINUTES` set; locally your `.env` provides them. Tests cover auth, documents, chat history, contacts and response generation.
 
-```bash
-uv run pytest -v
-```
+## Troubleshooting
 
-Run a specific test file:
-
-```bash
-uv run pytest tests/test_documents.py
-```
-
----
-
-
-# Project Structure
-
-```text
-backend/
-├── .dockerignore
-├── .env.example
-├── .python-version
-├── docker-compose.yml
-├── dockerfile
-├── document/
-│   ├── docker.txt
-│   ├── postgres.txt
-│   └── README.md
-├── main.py
-├── pyproject.toml
-├── src/
-│   ├── __init__.py
-│   ├── app.py
-│   ├── endpoints/
-│   │   ├── __init__.py
-│   │   ├── chat_history.py
-│   │   ├── contacts.py
-│   │   ├── documents.py
-│   │   ├── response_generation.py
-│   │   └── user_auth.py
-│   ├── models/
-│   │   ├── __init__.py
-│   │   ├── contactsdb.py
-│   │   ├── deldocdb.py
-│   │   ├── documentdb.py
-│   │   ├── files/
-│   │   │   └── __init__.py
-│   │   ├── qdrant_control.ipynb
-│   │   ├── ticketdb.py
-│   │   ├── user_querydb.py
-│   │   └── usersdb.py
-│   ├── schemas/
-│   │   ├── __init__.py
-│   │   ├── auth_schema.py
-│   │   ├── contacts_schema.py
-│   │   ├── document_schema.py
-│   │   ├── env_schema.py
-│   │   ├── file_magic_schema.py
-│   │   └── response_gen.py
-│   └── services/
-│       ├── __init__.py
-│       ├── auth/
-│       │   ├── __init__.py
-│       │   ├── jwt_dependency.py
-│       │   └── jwt_handler.py
-│       ├── model_dependencies/
-│       │   ├── __init__.py
-│       │   ├── database.py
-│       │   └── session_maker.py
-│       └── rag/
-│           ├── __init__.py
-│           ├── extraction.py
-│           ├── llm.py
-│           ├── retrieval_engine.py
-│           └── semantic_chunker.py
-├── tests/
-│   ├── __init__.py
-│   ├── conftest.py
-│   ├── test_chat_history.py
-│   ├── test_contacts.py
-│   ├── test_documents.py
-│   ├── test_response_generation.py
-│   └── test_user_auth.py
-└── uv.lock
-```
-
----
-
-# Troubleshooting
-
-## PostgreSQL Connection Error
-
-Verify:
-
-```bash
-docker ps
-```
-
-and confirm PostgreSQL container is running.
-
----
-
-## Qdrant Connection Error
-
-Verify:
-
-```bash
-docker ps
-```
-
-and ensure Qdrant is reachable at:
-
-```text
-http://localhost:6333
-```
-
----
-
-## Missing Dependencies
-
-Reinstall dependencies:
-
-```bash
-uv sync
-```
-
----
-
-## Test Failures
-
-Clear pytest cache:
-
-```bash
-uv run pytest --cache-clear
-```
-
-Run tests again:
-
-```bash
-uv run pytest -v
-```
+| Symptom | Likely cause and fix |
+|---|---|
+| Connection refused on port 5432 or 6333 | Containers are not running; check `docker ps` and run `docker compose up -d postgres qdrant` |
+| `could not translate host name "postgres"` | You are running on your machine but `.env` still uses Docker hostnames; switch to `localhost` (see Setup) |
+| `ImportError: failed to find libmagic` | Install `libmagic` (see Requirements) |
+| First upload or chat is very slow | Embedding and reranker models are downloading and loading; this happens on every request until models are loaded once at startup |
+| `docker compose` cannot find `Dockerfile` on Linux/macOS | The compose file says `Dockerfile` but the file is named `dockerfile`; set `dockerfile: dockerfile` in the `app` service |
+| Query rewrite or chat returns an Ollama error | Check `OLLAMA_HOST` and that the models are pulled (`ollama list`) |

@@ -1,248 +1,235 @@
-# RAG Backend Service
+# Document Intelligence — Retrieval-Augmented Generation (RAG)
 
-A production-oriented **Retrieval-Augmented Generation (RAG) backend** built with **FastAPI, Qdrant, PostgreSQL, and multiple LLM providers**.
+A full-stack document intelligence application built with **FastAPI, Next.js, Qdrant, PostgreSQL, and multiple LLM providers**. The system transforms uploaded documents into searchable knowledge sources and uses retrieval-augmented generation to produce context-grounded answers.
 
-The service handles the complete RAG workflow:
+The application implements an end-to-end RAG pipeline, including document ingestion, text extraction, chunking, embedding generation, vector storage, semantic retrieval, query rewriting, LLM generation, streaming responses, and audit logging.
 
-**Document ingestion → text extraction → chunking → embeddings → vector storage → semantic retrieval → query rewriting → LLM generation → streaming response → audit logging**
+The project emphasizes modular backend services, provider abstraction, document traceability, and maintainable application architecture.
 
-The architecture separates ingestion, retrieval, and generation into modular service layers, making the system easier to extend and maintain.
+## Key Features
 
----
+### Document Ingestion and Management
 
-## Features
+- Upload supported document formats, including PDF, DOCX, and TXT.
+- Extract text and prepare documents for indexing.
+- Store uploaded files in `models/files/`.
+- Capture file metadata, including filename, file type, size, and upload timestamp.
+- Validate uploaded files and handle storage paths safely.
+- Maintain database-backed document ingestion audit trails.
 
-### 📄 Document Ingestion
+### Chunking and Vector Storage
 
-* Upload PDF, DOCX, TXT, and other supported file types
-* Automatic file storage under `models/files/`
-* File metadata extraction:
+- Split extracted text into configurable chunks.
+- Generate embeddings using the configured embedding model.
+- Store vectors and associated metadata in Qdrant.
+- Preserve source references and chunk indices for retrieval traceability.
+- Support semantic search over indexed document content.
 
-  * Filename
-  * File type
-  * File size
-  * Upload timestamp
-* Database-backed audit trail
-* File validation
-* Safe directory creation and path handling
+### Retrieval-Augmented Generation
 
-### 🧩 Chunking & Embeddings
+- Optionally rewrite user queries before retrieval.
+- Convert queries into embeddings for vector search.
+- Retrieve the most relevant document chunks from Qdrant.
+- Assemble retrieved content into context for the generation model.
+- Track retrieved sources to support document-level traceability.
+- Ground generated responses in retrieved document context.
 
-* Text extraction from uploaded documents
-* Configurable text chunking
-* Embedding generation using the configured embedding model
-* Vector storage in Qdrant
-* Chunk metadata for retrieval traceability
-* Source tracking using `source:chunk_index`
+### Multi-Provider LLM Integration
 
-### 🔎 Semantic Retrieval
+A unified generation interface separates provider-specific logic from the core RAG workflow.
 
-* Query rewriting before retrieval
-* Qdrant vector search
-* Top-k chunk retrieval
-* Context assembly for LLM generation
-* Retrieval source tracking
+| Provider | Example models |
+|---|---|
+| OpenAI | GPT-4o, GPT-4o-mini |
+| Anthropic | Claude 3.5 Sonnet |
+| Google | Gemini models |
+| Ollama | Locally hosted models, including Llama and Mistral families |
 
-### 🤖 Multi-Provider LLM Generation
+Provider availability depends on the current application configuration. See [LLM Provider Configuration](#llm-provider-configuration) for details.
 
-The backend provides a unified interface for multiple LLM providers:
+Additional capabilities include:
 
-| Provider      | Example Models                  |
-| ------------- | ------------------------------- |
-| **OpenAI**    | GPT-4o, GPT-4o-mini             |
-| **Anthropic** | Claude 3.5 Sonnet               |
-| **Google**    | Gemini 2.0 Flash, Gemini Pro    |
-| **Ollama**    | Llama 3.1, Mistral, Phi-3, etc. |
+- Streaming generated responses.
+- Provider-specific model routing.
+- A common interface for model generation.
+- Optional local inference through Ollama.
+- Local query rewriting when enabled.
 
-Additional capabilities:
+### Interaction Logging and Traceability
 
-* Streaming responses
-* Provider-specific model routing
-* Unified generation interface
-* Local Ollama model for query rewriting
-* Optional local LLM inference
+The application supports logging RAG interactions for debugging, analytics, and traceability.
 
-### 📝 Chat Logging
+Logged information can include:
 
-Each RAG interaction can be logged for analytics and traceability, including:
+- Original user question.
+- Rewritten query.
+- Retrieved context sources.
+- Generated response.
+- Timestamp.
+- Associated username.
 
-* Original question
-* Rewritten question
-* Retrieved context sources
-* Final response
-* Timestamp
-* Username
+The exact information recorded depends on the configured logging implementation.
 
 ---
 
 ## Architecture
 
-The backend is organized around three primary stages:
+The application separates document ingestion, retrieval, and generation into distinct stages.
+
+### Document Ingestion Pipeline
 
 ```text
-                    ┌─────────────────┐
-                    │     Document    │
-                    │      Upload     │
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │ Text Extraction │
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │     Chunking    │
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │    Embeddings   │
-                    └────────┬────────┘
-                             │
-                             ▼
-                    ┌─────────────────┐
-                    │     Qdrant      │
-                    │  Vector Storage │
-                    └─────────────────┘
-
-
-User Query
-    │
-    ▼
-┌─────────────────┐
-│ Query Rewriting │
-│    (Ollama)     │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│    Embedding    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Qdrant Search   │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│ Context Assembly│
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  LLM Provider   │
-│ OpenAI / Claude │
-│ Google / Ollama │
-└────────┬────────┘
-         │
-         ▼
-   Streaming Answer
+Document Upload
+      |
+      v
+File Validation
+      |
+      v
+Text Extraction
+      |
+      v
+Text Chunking
+      |
+      v
+Embedding Generation
+      |
+      v
+Qdrant Vector Storage
 ```
+
+Uploaded documents are processed into searchable chunks. The resulting vectors and metadata are stored in Qdrant, while uploaded files and associated records are maintained by the application's storage and database layers.
+
+### Query and Generation Pipeline
+
+```text
+User Question
+      |
+      v
+Optional Query Rewriting
+      |
+      v
+Query Embedding
+      |
+      v
+Qdrant Semantic Search
+      |
+      v
+Top-K Chunk Retrieval
+      |
+      v
+Context Assembly
+      |
+      v
+LLM Provider
+      |
+      v
+Streaming Response
+      |
+      v
+Interaction Logging
+```
+
+The retrieval and generation stages use separate service layers, allowing individual components to be modified without tightly coupling the entire pipeline to a particular LLM provider.
 
 ---
 
-## API Endpoints
+## Technology Stack
+
+| Component | Technology | Purpose |
+|---|---|---|
+| Backend API | FastAPI | API endpoints and backend services |
+| Frontend | Next.js, React, TypeScript | User interface and chat experience |
+| Vector database | Qdrant | Embedding storage and semantic retrieval |
+| Relational database | PostgreSQL | Structured application data and logging |
+| Embeddings | Sentence Transformers | Document and query vector generation |
+| LLM integration | OpenAI, Anthropic, Google, Ollama | Query processing and response generation |
+| Containers | Docker Compose | Local service orchestration |
+| Streaming | Backend streaming endpoints | Incremental delivery of generated answers |
+
+Specific versions, models, and deployment settings depend on the project's configuration.
+
+---
+
+## API Overview
+
+The following endpoints expose document management and response-generation functionality.
 
 ### Document Management
 
-| Method | Endpoint              | Description                     |
-| ------ | --------------------- | ------------------------------- |
-| `GET`  | `/upload/files`       | List stored documents           |
-| `GET`  | `/upload/audit_trail` | View document ingestion history |
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/upload/files` | Retrieve the list of stored documents |
+| `GET` | `/upload/audit_trail` | Retrieve document ingestion audit records |
 
-### RAG Generation
+### Response Generation
 
-| Method | Endpoint                      | Description                                   |
-| ------ | ----------------------------- | --------------------------------------------- |
-| `POST` | `/response_generation/answer` | Generate a RAG answer with streaming          |
-| `...`  | `/response_generation/...`    | Additional retrieval and generation utilities |
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/response_generation/answer` | Generate a RAG response with streaming support |
+| `POST` | `/response_generation/...` | Additional response-generation functionality, depending on the implementation |
+
+For the complete request and response schemas, consult the backend API documentation and the relevant route definitions.
 
 ---
 
-## Project Structure
+## RAG Pipeline Details
+
+### 1. Document Ingestion
+
+Documents are uploaded, validated, and stored before being processed into searchable text.
+
+The ingestion pipeline extracts document content, splits it into chunks, generates embeddings, and stores the resulting vectors in Qdrant alongside relevant metadata.
+
+Source references use the following general format:
 
 ```text
-backend/
-│
-├── services/
-│   ├── rag/
-│   │   ├── retrieval_engine.py      # RAG pipeline
-│   │   ├── chunker.py               # Text chunking logic
-│   │   ├── embeddings.py            # Embedding generation
-│   │   └── ingestion.py             # Document ingestion
-│   │
-│   ├── model_dependencies/
-│   │   ├── session_maker.py         # Database session factory
-│   │   └── clients.py               # LLM provider clients
-│   │
-│   └── utils/
-│       └── file_utils.py            # File validation and path helpers
-│
-├── routers/
-│   ├── upload_router.py             # File ingestion and audit endpoints
-│   └── response_generation.py       # RAG answer endpoint
-│
-├── schemas/
-│   ├── env_schema.py                # Environment configuration
-│   └── response_gen.py              # Request/response schemas
-│
-├── models/
-│   ├── files/                       # Uploaded documents
-│   └── document.py                  # SQLAlchemy document model
-│
-└── main.py                          # FastAPI application entrypoint
+source:chunk_index
 ```
 
----
+This helps associate retrieved chunks with their originating documents and positions within the indexed content.
 
-# RAG Pipeline
+### 2. Query Rewriting
 
-## 1. Query Rewriting
+When query rewriting is enabled, the user's question is passed through a lightweight local Ollama model before retrieval.
 
-Before retrieval, the user's query is passed through a lightweight local Ollama model.
-
-The rewriting prompt instructs the model to:
+The rewriting prompt is designed to normalize the query without answering it:
 
 ```text
 Correct grammar and spelling only.
 Do not answer the question.
 ```
 
-The goal is to normalize the query while preserving the user's original intent.
+When query rewriting is disabled, the original question proceeds directly to retrieval.
 
----
+### 3. Semantic Retrieval
 
-## 2. Retrieval
-
-The rewritten query is converted into an embedding and used to search Qdrant.
+The query is converted into an embedding and used to search the Qdrant vector collection.
 
 ```text
-Rewritten Query
-       │
-       ▼
-   Embedding
-       │
-       ▼
- Qdrant Vector Search
-       │
-       ▼
-   Top-K Chunks
-       │
-       ▼
- Context Assembly
+Query
+  |
+  v
+Query Embedding
+  |
+  v
+Vector Similarity Search
+  |
+  v
+Top-K Relevant Chunks
+  |
+  v
+Context Assembly
 ```
 
-The retrieved chunks are combined into the context passed to the generation model.
+The retrieved chunks and their source metadata are assembled into a context for the generation model.
 
-Each retrieved chunk maintains source information for traceability.
+Retrieval quality depends on factors such as the embedding model, chunking strategy, query formulation, and retrieval configuration.
 
----
+### 4. Context-Grounded Prompt Construction
 
-## 3. Prompt Construction
+The generation stage receives the assembled context alongside the user's question.
 
-The assembled context is provided to the generation model using a constrained prompt:
+The prompt follows this general structure:
 
 ```text
 You are a helpful assistant. Use ONLY the context below to answer the question.
@@ -256,215 +243,166 @@ Question:
 Answer:
 ```
 
-This separates the retrieved source material from the user's question and instructs the model to ground its response in the retrieved context.
+This instructs the model to base its answer on the retrieved material rather than relying solely on its pretrained knowledge. Prompt instructions alone, however, do not guarantee that every response will be fully grounded or free from hallucinations.
 
----
+### 5. LLM Generation and Streaming
 
-## 4. LLM Generation
+The frontend allows the user to select an available model. The backend routes generation requests through a shared provider interface.
 
-The user can select the provider used to generate the final response.
+Conceptually, the supported provider identifiers are:
 
 ```python
 provider = "openai" | "claude" | "google" | "ollama"
 ```
 
-Streaming responses are supported across the configured providers.
+Actual provider availability is determined by the current frontend configuration, backend implementation, and required credentials.
 
-The backend uses a unified generation interface so the rest of the RAG pipeline does not need to be tightly coupled to a specific LLM provider.
-
----
-
-## 5. Logging
-
-RAG interactions are logged for traceability and analytics.
-
-A typical interaction records:
-
-```text
-Original Question
-        │
-        ▼
-Rewritten Question
-        │
-        ▼
-Retrieved Sources
-        │
-        ▼
-Generated Response
-        │
-        ▼
-Timestamp + User
-```
+Generated responses can be streamed to the frontend as they become available.
 
 ---
 
-# Environment Variables
+## LLM Provider Configuration
 
-Create an environment configuration containing the required credentials and service settings.
+### Current Provider Availability
 
-```env
-OPENAI_API_KEY=
-ANTHROPIC_API_KEY=
-GEMINI_API_KEY=
+The current frontend configuration blocks the OpenAI, Anthropic, and Google providers. Ollama is the currently enabled option.
 
-OLLAMA_HOST=http://localhost:11434
+To re-enable the other providers:
 
-QDRANT_URL=
-QDRANT_API_KEY=
+1. Open `frontend/src/app/(protected)/chat/page.tsx` within the `doc_intelligence` project directory.
+2. Locate the provider restriction in the model-selection handler.
+3. Review the conditional that blocks the `claude`, `google`, and `openai` provider identifiers.
+4. Remove or revise the restriction so requests can reach the intended backend provider.
+5. Configure the appropriate API credentials in the backend `.env` file.
+6. Verify the backend provider integrations and run the relevant frontend tests before using the providers.
 
-DATABASE_URL=
-```
+The restriction is currently implemented in a block similar to:
 
-Provider-specific API keys are only required when using the corresponding provider.
-
----
-
-# Installation
-
-## 1. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-## 2. Start the FastAPI Server
-
-```bash
-uvicorn main:app --reload
-```
-
-The API will be available at:
-
-```text
-http://localhost:8000
-```
-
-FastAPI's interactive documentation is available at:
-
-```text
-http://localhost:8000/docs
-```
-
----
-
-## 3. Start Qdrant
-
-For a local Qdrant instance:
-
-```bash
-docker run -p 6333:6333 qdrant/qdrant
-```
-
-Qdrant will be available at:
-
-```text
-http://localhost:6333
-```
-
----
-
-## 4. Start Ollama
-
-Ollama is used for local query rewriting and is optional if the application is configured differently.
-
-Start the Ollama server:
-
-```bash
-ollama serve
-```
-
-Then make sure the required model is available locally.
-
-For example:
-
-```bash
-ollama pull llama3.1:8b-instruct
-```
-
----
-
-# API Usage
-
-## Generate a RAG Answer
-
-### Request
-
-```http
-POST /response_generation/answer
-```
-
-### Example Request Body
-
-```json
-{
-  "question": "What is SOP-104?",
-  "username": "alex",
-  "rewrite_model": "llama3.1:8b-instruct",
-  "generation_model": "gpt-4o-mini",
-  "provider": "openai"
+```tsx
+// Just comment out this block or you can modify it by removing providers you want to use
+if (
+    model_provider[model] === "claude" ||
+    model_provider[model] === "google" ||
+    model_provider[model] === "openai"
+) {
+    alert(
+        `model provider ${model_provider[model]} is not currently connected try ollama model: qwen3.8:27b`
+    );
+    return;
 }
 ```
+**Reference:** Feel free to take a look at the frontend readme to find were model configuration is located
 
-The endpoint returns the generated response as a stream.
+**Important:** Removing this frontend restriction does not automatically configure or validate the corresponding backend integrations. Ensure that the provider implementation, model identifiers, credentials, and streaming behavior are configured correctly.
+
+For Ollama, install and run Ollama locally, pull a compatible model, and ensure the backend can reach the Ollama service. The model identifier shown in the frontend restriction is an example of the currently suggested configuration; verify that the exact model tag exists in your Ollama installation.
+
+Keep API keys in environment variables. Do not commit `.env` files containing secrets to version control.
 
 ---
 
-## List Uploaded Files
+## Project Structure
 
-```http
-GET /upload/files
+The repository is organized into backend and frontend components, with separate documentation for running the services and managing local infrastructure.
+
+```text
+backend/
+├── doc_intelligence/
+│   ├── backend/
+│   │   └── document/
+│   │       ├── README.md
+│   │       ├── docker.txt
+│   │       └── postgres.txt
+│   │
+│   └── frontend/
+│       └── src/
+│           └── documents/
+│               ├── README.md
+│               ├── tailwind_guide.txt
+│               └── users.json
+│
+└── runWindows.ps1
 ```
 
-Returns the documents currently stored by the backend.
+### Key Files
+
+| File | Purpose |
+|---|---|
+| `backend/document/README.md` | Backend setup, dependencies, environment configuration, and startup instructions |
+| `backend/document/docker.txt` | Docker commands for local infrastructure |
+| `backend/document/postgres.txt` | PostgreSQL setup and operational commands |
+| `frontend/src/documents/README.md` | Frontend setup, dependencies, and startup instructions |
+| `frontend/src/documents/tailwind_guide.txt` | Tailwind CSS reference notes |
+| `frontend/src/documents/users.json` | Sample user data, if required by the configured application |
+| `runWindows.ps1` | Windows startup script for the application |
 
 ---
 
-## Get Audit Trail
+## Running the Application
 
-```http
-GET /upload/audit_trail
-```
+Startup instructions are maintained alongside the relevant components to keep this overview focused on architecture and functionality.
 
-Returns document ingestion history recorded by the application.
+### 1. Start Infrastructure
+
+Use the commands documented in:
+
+- `backend/document/docker.txt` for Docker-based services.
+- `backend/document/postgres.txt` for PostgreSQL setup and operations.
+
+Start the required infrastructure before launching the application services.
+
+### 2. Start the Backend
+
+Follow `backend/document/README.md` for backend dependencies, environment variables, and API startup commands.
+
+Before starting the backend, verify that:
+
+- PostgreSQL is available and correctly configured.
+- Qdrant is running and reachable.
+- Required environment variables are configured.
+- The embedding model and any required model files are accessible.
+- Ollama or the selected external LLM provider is available.
+
+### 3. Start the Frontend
+
+Follow `frontend/src/documents/README.md` for frontend dependency installation, environment configuration, and development-server commands.
+
+Ensure that the frontend is configured to communicate with the correct backend API URL.
+
+### 4. Start Using the Windows Launcher
+
+The repository also includes `runWindows.ps1`, intended to simplify application startup on Windows.
+
+Review the script and its prerequisites before running it. Use the individual component instructions if you need to troubleshoot a service or start components separately.
+
+**Recommended startup order:** Infrastructure → Backend → Frontend.
+
+---
+
+## Future Improvements
+
+Potential improvements to the current implementation include:
+
+- [ ] API rate limiting and request throttling.
+- [ ] Response caching and retrieval optimization.
+- [ ] End-to-end visualization of ingestion, retrieval, and generation traces.
+- [ ] Expanded observability inspired by tools such as LangSmith.
+- [ ] Automated integration tests for the complete RAG pipeline.
+- [ ] Improved evaluation of retrieval relevance and answer grounding.
+- [ ] More comprehensive provider compatibility and streaming tests.
+- [ ] Additional operational controls for production deployments.
 
 ---
 
-# Design Principles
+## Project Goals
 
-### Provider Abstraction
+This project explores the engineering challenges involved in building a modular document intelligence system, including:
 
-LLM providers are accessed through a unified interface, allowing the application to switch between cloud and local models without restructuring the RAG pipeline.
+- Designing an end-to-end RAG workflow.
+- Integrating vector search with relational data storage.
+- Supporting multiple LLM providers through an abstraction layer.
+- Delivering generated responses through streaming APIs.
+- Maintaining document provenance and interaction logs.
+- Separating service responsibilities to support future extension and testing.
 
-### Separation of Concerns
-
-The backend separates:
-
-* Document ingestion
-* Text processing
-* Embedding generation
-* Vector retrieval
-* Prompt construction
-* LLM generation
-* Logging
-
-This keeps individual components easier to test and replace.
-
-### Local-First Components
-
-Ollama can be used for local inference, allowing lightweight processing such as query rewriting to run without an external API.
-
-### Traceability
-
-Document metadata, chunk indexes, retrieved sources, and chat history provide visibility into how information moves through the RAG pipeline.
-
----
-
-# Future Improvements
-
-Planned improvements include:
-* [ ] Rate limiting
-* [ ] Response caching
-* [ ] Full retrieval and generation trace visualization
-* [ ] LangSmith-style observability
-
----
+The goal is to provide a maintainable foundation for applications that need to search, retrieve, and generate answers from private or domain-specific document collections.

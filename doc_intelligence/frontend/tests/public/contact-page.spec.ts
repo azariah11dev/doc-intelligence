@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Contact Page", () => {
   test("renders page", async ({ page }) => {
-    await page.goto("/contact");
+    await page.goto("/contacts");
 
     await expect(
       page.getByRole("heading", {
@@ -18,7 +18,7 @@ test.describe("Contact Page", () => {
   });
 
   test("allows user to fill form", async ({ page }) => {
-    await page.goto("/contact");
+    await page.goto("/contacts");
 
     await page
       .getByPlaceholder("Your name")
@@ -55,7 +55,7 @@ test.describe("Contact Page", () => {
       }
     );
 
-    await page.goto("/contact");
+    await page.goto("/contacts");
 
     await page.getByPlaceholder("Your name").fill("John");
     await page
@@ -91,7 +91,7 @@ test.describe("Contact Page", () => {
       }
     );
 
-    await page.goto("/contact");
+    await page.goto("/contacts");
 
     await page.getByPlaceholder("Your name").fill("John");
     await page
@@ -126,7 +126,7 @@ test.describe("Contact Page", () => {
       }
     );
 
-    await page.goto("/contact");
+    await page.goto("/contacts");
 
     await page.getByPlaceholder("Your name").fill("John");
     await page

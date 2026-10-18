@@ -1,10 +1,17 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import SignUpPage from "@/app/signup/page";
+import SignUpPage from "@/app/(public)/signup/page";
+
+const mockPush = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 
 describe("SignUpPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    global.fetch = jest.fn();
 
     Object.defineProperty(window, "alert", {
       writable: true,
@@ -96,7 +103,7 @@ describe("SignUpPage", () => {
       "Passwords do not match"
     );
 
-    expect(fetch).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it("submits registration successfully", async () => {
@@ -105,12 +112,6 @@ describe("SignUpPage", () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
     });
-
-    delete (window as any).location;
-
-    (window as any).location = {
-      href: "",
-    };
 
     render(<SignUpPage />);
 
@@ -148,7 +149,7 @@ describe("SignUpPage", () => {
       "Registration successful! Please log in."
     );
 
-    expect(window.location.href).toBe("/login");
+    expect(mockPush).toHaveBeenCalledWith("/login");
   });
 
   it("shows backend error message", async () => {

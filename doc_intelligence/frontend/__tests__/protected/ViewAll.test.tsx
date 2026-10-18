@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import ViewAll from "@/app/view_all/page";
+import ViewAll from "@/app/(protected)/view_all/page";
 
 jest.mock("next/link", () => {
   return ({ children, href }: any) => (

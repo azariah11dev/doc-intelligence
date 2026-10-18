@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/authenticated";
 
 test.describe("View All Tickets", () => {
   const ticket = {
@@ -65,7 +65,7 @@ test.describe("View All Tickets", () => {
     await page.goto("/view_all");
 
     await expect(
-      page.getByText("john")
+      page.getByRole("cell", { name: "john", exact: true })
     ).toBeVisible();
 
     await expect(
@@ -117,7 +117,9 @@ test.describe("View All Tickets", () => {
     await page.goto("/view_all");
 
     await expect(
-      page.getByText(/failed to load tickets/i)
+      page.locator("main p").filter({
+        hasText: "Failed to load tickets: 500",
+      })
     ).toBeVisible();
   });
 

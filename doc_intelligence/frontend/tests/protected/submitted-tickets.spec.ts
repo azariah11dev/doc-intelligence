@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/authenticated";
 
 test.describe("Submitted Tickets", () => {
   const ticket = {
@@ -20,7 +20,7 @@ test.describe("Submitted Tickets", () => {
       });
     });
 
-    await page.goto("/open_tickets");
+    await page.goto("/submitted_tickets");
 
     await expect(
       page.getByRole("heading", {
@@ -37,7 +37,7 @@ test.describe("Submitted Tickets", () => {
       });
     });
 
-    await page.goto("/open_tickets");
+    await page.goto("/submitted_tickets");
 
     await expect(
       page.getByText(/no open tickets/i)
@@ -52,9 +52,11 @@ test.describe("Submitted Tickets", () => {
       });
     });
 
-    await page.goto("/open_tickets");
+    await page.goto("/submitted_tickets");
 
-    await expect(page.getByText("john")).toBeVisible();
+    await expect(
+      page.getByRole("cell", { name: "john", exact: true })
+    ).toBeVisible();
 
     await expect(
       page.getByText("john@test.com")
@@ -83,7 +85,7 @@ test.describe("Submitted Tickets", () => {
       }
     );
 
-    await page.goto("/open_tickets");
+    await page.goto("/submitted_tickets");
 
     const select = page.locator("select").first();
 
@@ -100,10 +102,12 @@ test.describe("Submitted Tickets", () => {
       });
     });
 
-    await page.goto("/open_tickets");
+    await page.goto("/submitted_tickets");
 
     await expect(
-      page.getByText(/failed to load tickets/i)
+      page.locator("main p").filter({
+        hasText: "Failed to load tickets: 500",
+      })
     ).toBeVisible();
   });
 
@@ -122,7 +126,7 @@ test.describe("Submitted Tickets", () => {
       });
     });
 
-    await page.goto("/open_tickets");
+    await page.goto("/submitted_tickets");
 
     await expect(
       page.getByRole("button", {
@@ -139,7 +143,7 @@ test.describe("Submitted Tickets", () => {
       });
     });
 
-    await page.goto("/open_tickets");
+    await page.goto("/submitted_tickets");
 
     await expect(
       page.getByRole("link", {

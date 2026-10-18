@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function SignUpPage() {
+  const router = useRouter();
   const [form, setForm] = useState({
     username: "",
     email: "",
@@ -35,7 +37,7 @@ export default function SignUpPage() {
 
       if (response.ok) {
         alert("Registration successful! Please log in.");
-        window.location.href = "/login";
+        router.push("/login");
       } else {
         const error = await response.json();
         alert(error.detail || "Registration failed");

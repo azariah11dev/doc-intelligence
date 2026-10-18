@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/authenticated";
 
 test.describe("Chat Page", () => {
   test("renders chat ui", async ({ page }) => {
@@ -105,7 +105,7 @@ test.describe("Chat Page", () => {
 
     await page
       .getByLabel("Choose a model:")
-      .selectOption({ label: "claude-sonnet" });
+      .selectOption({ label: "Claude-3.5-Sonnet" });
 
     await page
       .getByPlaceholder(

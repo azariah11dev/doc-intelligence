@@ -1,6 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import LoginPage from "@/app/login/page";
+import LoginPage from "@/app/(public)/login/page";
+
+const mockPush = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 
 describe("LoginPage", () => {
   beforeEach(() => {
@@ -65,12 +71,6 @@ describe("LoginPage", () => {
       }),
     });
 
-    delete (window as any).location;
-
-    (window as any).location = {
-      href: "",
-    };
-
     render(<LoginPage />);
 
     await user.type(
@@ -103,7 +103,7 @@ describe("LoginPage", () => {
       "testuser"
     );
 
-    expect(window.location.href).toBe("/dashboard");
+    expect(mockPush).toHaveBeenCalledWith("/dashboard");
   });
 
   it("shows api error message", async () => {

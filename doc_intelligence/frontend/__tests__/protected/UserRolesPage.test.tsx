@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import UserRolesPage from "@/app/user_roles/page";
+import UserRolesPage from "@/app/(protected)/user-roles/page";
 
 describe("UserRolesPage", () => {
   const mockUsers = [
@@ -217,10 +217,9 @@ describe("UserRolesPage", () => {
 
     await user.click(deleteButtons[0]);
 
-    const modalDelete =
-      screen.getAllByRole("button", {
-        name: /^delete$/i,
-      })[1];
+    const modalDelete = screen.getAllByRole("button", {
+      name: /^delete$/i,
+    }).at(-1)!;
 
     await user.click(modalDelete);
 

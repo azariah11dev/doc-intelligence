@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import LandingPage from "@/app/page";
+import LandingPage from "@/app/(public)/page";
 
 describe("LandingPage", () => {
   it("renders hero section", () => {

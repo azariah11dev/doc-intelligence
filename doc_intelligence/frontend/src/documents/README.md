@@ -552,6 +552,12 @@ await page.addInitScript(() => {
 
 # Architecture
 
+Update available models here
+
+```text
+doc_intelligence\frontend\src\app\(protected)\comps\model_provider.json
+```
+
 ## Public Routes
 
 ```text

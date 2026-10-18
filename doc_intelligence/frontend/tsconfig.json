@@ -11,6 +11,9 @@
     "strict": false,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,

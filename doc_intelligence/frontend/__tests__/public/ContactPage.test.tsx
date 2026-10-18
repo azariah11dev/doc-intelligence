@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import ContactPage from "@/app/contact/page";
+import ContactPage from "@/app/(public)/contacts/page";
 
 describe("ContactPage", () => {
   beforeEach(() => {

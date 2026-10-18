@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import ChatHistory from "@/app/chat_history/page";
+import ChatHistory from "@/app/(protected)/chat_history/page";
 
 const pushMock = jest.fn();
 
@@ -62,6 +62,7 @@ describe("ChatHistory", () => {
 
   it("renders conversations", async () => {
     global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
       json: async () => [
         {
           id: "123",
@@ -99,6 +100,7 @@ describe("ChatHistory", () => {
     const user = userEvent.setup();
 
     global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
       json: async () => [
         {
           id: "abc123",

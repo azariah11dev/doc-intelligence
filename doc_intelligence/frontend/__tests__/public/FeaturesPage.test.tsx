@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import FeaturesPage from "@/app/features/page";
+import FeaturesPage from "@/app/(public)/features/page";
 
 describe("FeaturesPage", () => {
   it("renders the page heading", () => {

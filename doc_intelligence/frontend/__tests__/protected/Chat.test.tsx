@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import Chat from "@/app/chat/page";
+import Chat from "@/app/(protected)/chat/page";
 
-jest.mock("../comps/model_provider.json", () => ({
+jest.mock("../../src/app/(protected)/comps/model_provider.json", () => ({
   "qwen3.8:27b": "ollama",
   "claude-sonnet": "claude",
 }));

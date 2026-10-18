@@ -1,10 +1,17 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import Dashboard from "@/app/dashboard/page";
+import Dashboard from "@/app/(protected)/dashboard/page";
+
+const mockPush = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 
 describe("Dashboard", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockPush.mockClear();
 
     Storage.prototype.getItem = jest.fn((key) => {
       if (key === "username") return "john";
@@ -194,12 +201,6 @@ describe("Dashboard", () => {
         json: async () => [],
       });
 
-    delete (window as any).location;
-
-    (window as any).location = {
-      href: "",
-    };
-
     render(<Dashboard />);
 
     await user.click(
@@ -208,8 +209,7 @@ describe("Dashboard", () => {
       })
     );
 
-    expect(window.location.href)
-      .toBe("/documents");
+    expect(mockPush).toHaveBeenCalledWith("/documents");
   });
 
   it("shows loading state", () => {

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   ComputerDesktopIcon,
@@ -19,6 +20,7 @@ const itemClass =
 const iconClass = "w-5 h-5 shrink-0";
 
 export default function SideBar() {
+  const router = useRouter();
   const [username, setUsername] = useState<string | null>(null);
   const [role, setRole] = useState<string | null>(null);
   const [now, setNow] = useState<Date | null>(null);
@@ -51,7 +53,7 @@ export default function SideBar() {
     localStorage.removeItem("email");
     localStorage.removeItem("conversation_id");
     localStorage.removeItem("open_conversation_id");
-    window.location.assign("/login");
+    router.push("/login");
   };
 
   return (

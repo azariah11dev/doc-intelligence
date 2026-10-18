@@ -60,7 +60,7 @@ test.describe("About Page", () => {
 
     for (const feature of features) {
       await expect(
-        page.getByText(feature, { exact: false })
+        page.getByText(feature, { exact: true })
       ).toBeVisible();
     }
   });

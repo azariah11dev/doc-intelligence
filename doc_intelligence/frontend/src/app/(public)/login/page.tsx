@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [form, setForm] = useState({
     username: "",
     password: "",
@@ -32,7 +34,7 @@ export default function LoginPage() {
         localStorage.setItem("email", data.email);
 
         // Redirect to dashboard
-        window.location.href = "/dashboard";
+        router.push("/dashboard");
       } else {
         const error = await response.json();
         alert(error.detail || "Invalid username or password");

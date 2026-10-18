@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 type availableFile = {
   path: string;
@@ -7,6 +8,7 @@ type availableFile = {
 };
 
 export default function Dashboard() {
+  const router = useRouter();
   const [greeting, setGreeting] = useState("");
   const [username, setUsername] = useState<string | null>(null);
   const [docCount, setDocCount] = useState<number>(0);
@@ -68,7 +70,7 @@ export default function Dashboard() {
   }, []);
 
   function docPagenav() {
-    window.location.href = "/documents"
+    router.push("/documents");
   }
 
   function viewDocumentattachment(filepath: string | null) {

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/authenticated";
 
 test.describe("Sidebar", () => {
   test.beforeEach(async ({ page }) => {
@@ -120,6 +120,11 @@ test.describe("Sidebar", () => {
     await expect(page).toHaveURL(
       /\/login$/
     );
+    await expect
+      .poll(() =>
+        page.evaluate(() => localStorage.getItem("access_token"))
+      )
+      .toBeNull();
   });
 
   test("renders date and time", async ({

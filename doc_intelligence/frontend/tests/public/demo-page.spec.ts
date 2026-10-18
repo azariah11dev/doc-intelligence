@@ -1,6 +1,16 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Demo Page", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("https://www.youtube.com/**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<!doctype html><html><body>Mock video embed</body></html>",
+      });
+    });
+  });
+
   test("renders heading", async ({ page }) => {
     await page.goto("/demo");
 

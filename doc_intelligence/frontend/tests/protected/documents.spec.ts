@@ -52,15 +52,15 @@ test.describe("Documents Page", () => {
     await page.goto("/documents");
 
     await expect(
-      page.getByText(/upload document/i)
+      page.getByRole("heading", { name: /upload document/i })
     ).toBeVisible();
 
     await expect(
-      page.getByText(/find documents/i)
+      page.getByRole("heading", { name: /find documents/i })
     ).toBeVisible();
 
     await expect(
-      page.getByText(/audit log/i)
+      page.getByRole("heading", { name: /audit log/i })
     ).toBeVisible();
   });
 
@@ -68,11 +68,11 @@ test.describe("Documents Page", () => {
     await page.goto("/documents");
 
     await expect(
-      page.getByText("report.pdf")
+      page.locator("ul").getByText("report.pdf", { exact: true })
     ).toBeVisible();
 
     await expect(
-      page.getByText("notes.docx")
+      page.locator("ul").getByText("notes.docx", { exact: true })
     ).toBeVisible();
   });
 
@@ -86,11 +86,11 @@ test.describe("Documents Page", () => {
       .fill("report");
 
     await expect(
-      page.getByText("report.pdf")
+      page.locator("ul").getByText("report.pdf", { exact: true })
     ).toBeVisible();
 
     await expect(
-      page.getByText("notes.docx")
+      page.locator("ul").getByText("notes.docx", { exact: true })
     ).toHaveCount(0);
   });
 
@@ -98,11 +98,11 @@ test.describe("Documents Page", () => {
     await page.goto("/documents");
 
     await expect(
-      page.getByText("UPLOAD")
+      page.getByRole("cell", { name: "UPLOAD", exact: true })
     ).toBeVisible();
 
     await expect(
-      page.getByText("SUCCESS")
+      page.getByRole("cell", { name: "SUCCESS", exact: true })
     ).toBeVisible();
   });
 

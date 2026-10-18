@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/authenticated";
 
 test.describe("Chat History", () => {
   test("renders heading", async ({
@@ -100,6 +100,17 @@ test.describe("Chat History", () => {
       }
     );
 
+    await page.route(
+      "http://localhost:8000/chat/conversation/abc123",
+      async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ messages: [] }),
+        });
+      }
+    );
+
     await page.goto("/chat_history");
 
     await page
@@ -110,13 +121,9 @@ test.describe("Chat History", () => {
       /\/chat$/
     );
 
-    const storedId = await page.evaluate(() =>
-      localStorage.getItem(
-        "open_conversation_id"
-      )
-    );
-
-    expect(storedId).toBe("abc123");
+    await expect.poll(() =>
+      page.evaluate(() => localStorage.getItem("conversation_id"))
+    ).toBe("abc123");
   });
 
   test("renders loading state before api resolves", async ({

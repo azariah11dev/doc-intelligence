@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import TicketPage from "@/app/ticket/page";
+import TicketPage from "@/app/(protected)/ticket/page";
 
 jest.mock("next/link", () => {
   return ({ children, href }: any) => (
@@ -240,7 +240,7 @@ describe("TicketPage", () => {
 
     await user.upload(fileInput, file);
 
-    expect(fileInput).toHaveFiles(file);
+    expect((fileInput as HTMLInputElement).files?.[0]).toBe(file);
   });
 
   it("resets form after success", async () => {

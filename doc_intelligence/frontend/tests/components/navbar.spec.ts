@@ -15,7 +15,7 @@ test.describe("Navbar", () => {
     await page.goto("/");
 
     const logo = page.getByAltText(
-      /taskforge logo/i
+      /doc intelligence logo/i
     );
 
     await expect(logo).toBeVisible();

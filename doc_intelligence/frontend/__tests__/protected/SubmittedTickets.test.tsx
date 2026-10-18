@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import SubmittedTickets from "@/app/open_tickets/page";
+import SubmittedTickets from "@/app/(protected)/submitted_tickets/page";
 
 jest.mock("next/link", () => {
   return ({ children, href }: any) => (
@@ -126,9 +126,7 @@ describe("SubmittedTickets", () => {
 
     render(<SubmittedTickets />);
 
-    const select = await screen.findByDisplayValue(
-      "open"
-    );
+    const select = await screen.findByRole("combobox");
 
     await user.selectOptions(
       select,

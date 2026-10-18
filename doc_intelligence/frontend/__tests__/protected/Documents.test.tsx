@@ -1,6 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import Documents from "@/app/documents/page";
+import Documents from "@/app/(protected)/documents/page";
 
 describe("Documents", () => {
   beforeEach(() => {
@@ -61,11 +61,11 @@ describe("Documents", () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText(/find documents/i)
+      screen.getByRole("heading", { name: /find documents/i })
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText(/audit log/i)
+      screen.getByRole("heading", { name: /^audit log$/i })
     ).toBeInTheDocument();
   });
 
@@ -75,11 +75,11 @@ describe("Documents", () => {
     render(<Documents />);
 
     expect(
-      await screen.findByText("test.pdf")
+      await screen.findByText("test.pdf", { selector: "span" })
     ).toBeInTheDocument();
 
     expect(
-      await screen.findByText("test.docx")
+      await screen.findByText("test.docx", { selector: "span" })
     ).toBeInTheDocument();
   });
 
@@ -104,17 +104,17 @@ describe("Documents", () => {
 
     render(<Documents />);
 
-    await screen.findByText("test.pdf");
+    await screen.findByText("test.pdf", { selector: "span" });
 
     await user.type(
       screen.getByPlaceholderText(
-        /search by file name/i
+        /^search by file name\.\.\.$/i
       ),
       "pdf"
     );
 
     expect(
-      screen.getByText("test.pdf")
+      screen.getByText("test.pdf", { selector: "span" })
     ).toBeInTheDocument();
 
     expect(
@@ -147,11 +147,9 @@ describe("Documents", () => {
 
     render(<Documents />);
 
-    const file = await screen.findByText(
-      "test.pdf"
-    );
+    const file = await screen.findByText("test.pdf", { selector: "span" });
 
-    await user.dblClick(file);
+    await user.dblClick(file.closest("li")!);
 
     expect(window.open).toHaveBeenCalledWith(
       "http://localhost:8000/upload/files/view/test.pdf",
@@ -167,10 +165,9 @@ describe("Documents", () => {
 
     render(<Documents />);
 
-    const deleteButton =
-      await screen.findByRole("button", {
-        name: /delete/i,
-      });
+    const deleteButton = (await screen.findAllByRole("button", {
+      name: /^delete$/i,
+    }))[0];
 
     await user.click(deleteButton);
 
@@ -186,17 +183,18 @@ describe("Documents", () => {
 
     render(<Documents />);
 
-    const deleteButton =
-      await screen.findByRole("button", {
-        name: /^delete$/i,
-      });
+    const deleteButton = (await screen.findAllByRole("button", {
+      name: /^delete$/i,
+    }))[0];
 
     await user.click(deleteButton);
 
-    const modalDelete =
-      screen.getAllByRole("button", {
-        name: /^delete$/i,
-      })[1];
+    const modal = screen.getByRole("heading", {
+      name: /delete document/i,
+    }).parentElement!.parentElement!;
+    const modalDelete = within(modal).getByRole("button", {
+      name: /^delete$/i,
+    });
 
     await user.click(modalDelete);
 

@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/authenticated";
 
 test.describe("User Management", () => {
     const users = [
@@ -25,9 +25,11 @@ test.describe("User Management", () => {
             });
         });
 
-        await page.goto("/user_roles");
+        await page.goto("/user-roles");
 
-        await expect(page.getByText("john")).toBeVisible();
+        await expect(
+            page.getByText("john", { exact: true })
+        ).toBeVisible();
         await expect(page.getByText("john@test.com")).toBeVisible();
     });
 
@@ -43,7 +45,7 @@ test.describe("User Management", () => {
             });
         });
 
-        await page.goto("/user_roles");
+        await page.goto("/user-roles");
 
         await expect(
             page.getByText(/loading users/i)
@@ -67,7 +69,7 @@ test.describe("User Management", () => {
             });
         });
 
-        await page.goto("/user_roles");
+        await page.goto("/user-roles");
 
         const select = page.getByRole("combobox");
 
@@ -84,7 +86,7 @@ test.describe("User Management", () => {
             });
         });
 
-        await page.goto("/user_roles");
+        await page.goto("/user-roles");
 
         await page.getByRole("button", {
             name: /^delete$/i,
@@ -103,7 +105,7 @@ test.describe("User Management", () => {
             });
         });
 
-        await page.goto("/user_roles");
+        await page.goto("/user-roles");
 
         await page.getByRole("button", {
             name: /^delete$/i,
@@ -126,7 +128,7 @@ test.describe("User Management", () => {
             });
         });
 
-        await page.goto("/user_roles");
+        await page.goto("/user-roles");
 
         await expect(
             page.getByText(
@@ -157,7 +159,7 @@ test.describe("User Management", () => {
             });
         });
 
-        await page.goto("/user_roles");
+        await page.goto("/user-roles");
 
         await page.getByRole("button", {
             name: /^delete$/i,
@@ -168,7 +170,7 @@ test.describe("User Management", () => {
         }).last().click();
 
         await expect(
-            page.getByText("john")
+            page.getByText("john", { exact: true })
         ).toHaveCount(0);
     });
 });

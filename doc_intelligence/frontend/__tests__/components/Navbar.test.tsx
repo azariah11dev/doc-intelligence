@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import Navbar from "@/app/comps/Navbar";
+import Navbar from "@/app/(public)/components/navBar";
 
 jest.mock("next/link", () => {
   return ({ children, href }: any) => (
@@ -22,7 +22,7 @@ describe("Navbar", () => {
     render(<Navbar />);
 
     const logo = screen.getByAltText(
-      /taskforge logo/i
+      /doc intelligence logo/i
     );
 
     expect(logo).toBeInTheDocument();

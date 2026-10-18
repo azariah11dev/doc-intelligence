@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import AboutPage from "@/app/about/page";
+import AboutPage from "@/app/(public)/about/page";
 
 describe("AboutPage", () => {
   it("renders page heading", () => {
@@ -59,8 +59,8 @@ describe("AboutPage", () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByText(/semantic retrieval/i)
-    ).toBeInTheDocument();
+      screen.getAllByText(/semantic retrieval/i).length
+    ).toBeGreaterThan(0);
 
     expect(
       screen.getByText(/fast document processing/i)

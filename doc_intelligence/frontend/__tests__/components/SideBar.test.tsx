@@ -1,6 +1,12 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import SideBar from "@/app/comps/SideBar";
+import SideBar from "@/app/(protected)/comps/sideBar";
+
+const mockPush = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 
 jest.mock("next/link", () => {
   return ({ children, href, onClick }: any) => (
@@ -39,11 +45,7 @@ describe("SideBar", () => {
 
     Storage.prototype.removeItem = jest.fn();
 
-    delete (window as any).location;
-
-    (window as any).location = {
-      assign: jest.fn(),
-    };
+    mockPush.mockClear();
   });
 
   it("renders username and role", async () => {
@@ -139,9 +141,7 @@ describe("SideBar", () => {
       "access_token"
     );
 
-    expect(window.location.assign).toHaveBeenCalledWith(
-      "/login"
-    );
+    expect(mockPush).toHaveBeenCalledWith("/login");
   });
 
   it("renders date/time section", async () => {

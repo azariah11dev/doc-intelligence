@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../fixtures/authenticated";
 
 test.describe("Dashboard", () => {
   test.beforeEach(async ({ page }) => {
@@ -70,11 +70,11 @@ test.describe("Dashboard", () => {
     await page.goto("/dashboard");
 
     await expect(
-      page.getByText("test1.pdf")
+      page.getByText("test1.pdf", { exact: true })
     ).toBeVisible();
 
     await expect(
-      page.getByText("test2.docx")
+      page.getByText("test2.docx", { exact: true })
     ).toBeVisible();
   });
 
@@ -171,6 +171,16 @@ test.describe("Dashboard", () => {
         });
       }
     );
+    await page.context().route(
+      "http://localhost:8000/upload/files/view/test.pdf",
+      async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "text/html",
+          body: "mock document",
+        });
+      }
+    );
 
     const popupPromise =
       page.waitForEvent("popup");
@@ -178,7 +188,7 @@ test.describe("Dashboard", () => {
     await page.goto("/dashboard");
 
     await page
-      .getByText("test.pdf")
+      .getByText("test.pdf", { exact: true })
       .dblclick();
 
     const popup = await popupPromise;

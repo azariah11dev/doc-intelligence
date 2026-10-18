@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import DemoPage from "@/app/demo/page";
+import DemoPage from "@/app/(public)/demo/page";
 
 describe("DemoPage", () => {
   it("renders page heading", () => {

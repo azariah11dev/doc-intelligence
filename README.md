@@ -387,9 +387,6 @@ Potential improvements to the current implementation include:
 - [ ] Response caching and retrieval optimization.
 - [ ] End-to-end visualization of ingestion, retrieval, and generation traces.
 - [ ] Expanded observability inspired by tools such as LangSmith.
-- [ ] Automated integration tests for the complete RAG pipeline.
-- [ ] Improved evaluation of retrieval relevance and answer grounding.
-- [ ] More comprehensive provider compatibility and streaming tests.
 - [ ] Additional operational controls for production deployments.
 
 ---

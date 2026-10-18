@@ -1,10 +1,16 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import modelProvider from "../comps/model_provider.json" with { type: "json" };
+import {
+    LightBulbIcon,
+    ChatBubbleOvalLeftIcon,
+} from "@heroicons/react/24/outline";
 
 type Message = { role: "user" | "assistant"; content: string };
 
-const model_provider: Record<string, string> = modelProvider
+const model_provider: Record<string, string> = modelProvider;
+
+const REWRITE_MODEL = "qwen2.5:3b";
 
 export default function Chat() {
     const [model, setModel] = useState("qwen3.8:27b");
@@ -13,6 +19,11 @@ export default function Chat() {
     const [loading, setLoading] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
     const [conversationId, setConversationId] = useState<string | null>(null);
+    const [accuracy, setAccuracy] = useState<"on" | "off">("on");
+
+    // Accuracy mode on  -> query is rewritten by the small model first.
+    // Accuracy mode off -> no rewrite (null).
+    const rewriteModel = accuracy === "on" ? REWRITE_MODEL : null;
 
     async function loadConversation(convoId: string) {
         try {
@@ -52,9 +63,9 @@ export default function Chat() {
         bottomRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
-
     function updateLastMessage(fn: (content: string) => string) {
         setMessages((prev) => {
+            if (prev.length === 0) return prev;
             const updated = [...prev];
             const last = updated[updated.length - 1];
             updated[updated.length - 1] = { ...last, content: fn(last.content) };
@@ -62,9 +73,23 @@ export default function Chat() {
         });
     }
 
+    const toggleAccuracy = () => {
+        setAccuracy((prev) => (prev === "on" ? "off" : "on"));
+    };
+
     async function chatInfo() {
         const q = question.trim();
         if (!q || loading) return;
+
+        //mark exact location if included in jest or playwright
+        if (
+            model_provider[model] === "claude" ||
+            model_provider[model] === "google" ||
+            model_provider[model] === "openai"
+        ) {
+            alert(`model provider ${model_provider[model]} is not currently connected try ollama model: qwen3.8:27b`);
+            return;
+        }
 
         setQuestion("");
         setLoading(true);
@@ -82,7 +107,7 @@ export default function Chat() {
                 body: JSON.stringify({
                     question: q,
                     username: localStorage.getItem("username"),
-                    rewrite_model: "qwen2.5:3b", // You can set this to None or "" if you don't want a rewrite
+                    rewrite_model: rewriteModel,
                     generation_model: model,
                     provider: model_provider[model],
                     id: conversationId ?? null,
@@ -105,17 +130,22 @@ export default function Chat() {
                 // Try to parse JSON metadata
                 try {
                     const obj = JSON.parse(chunk);
-                    if (obj.meta?.conversation_id) {
+                    if (obj?.meta?.conversation_id) {
                         setConversationId(obj.meta.conversation_id);
                         localStorage.setItem("conversation_id", obj.meta.conversation_id);
                         continue; // DO NOT append to chat
                     }
-                } catch (err) {
-                    console.log(err)
+                } catch {
+                    // Not JSON -> normal streamed text
                 }
                 // Append streamed text normally
                 updateLastMessage((content) => content + chunk);
             }
+        } catch (err) {
+            console.error("Error generating answer:", err);
+            updateLastMessage(
+                (content) => content || "Something went wrong. Please try again."
+            );
         } finally {
             setLoading(false);
         }
@@ -127,8 +157,9 @@ export default function Chat() {
                 {messages.map((m, i) => (
                     <div
                         key={i}
-                        className={`p-2 rounded whitespace-pre-wrap ${m.role === "user" ? "bg-gray-700" : "bg-gray-800"
-                            }`}
+                        className={`p-2 rounded whitespace-pre-wrap ${
+                            m.role === "user" ? "bg-gray-700" : "bg-gray-800"
+                        }`}
                     >
                         {m.content}
                     </div>
@@ -145,43 +176,79 @@ export default function Chat() {
                         onChange={(e) => setQuestion(e.target.value)}
                     />
 
-                    <div className="flex flex-row items-center gap-3">
-                        <label htmlFor="models" className="text-sm opacity-70">
-                            Choose a model
-                        </label>
+                    <ul className="flex flex-row items-center gap-3">
+                        <li className="flex items-center gap-2">
+                            <label htmlFor="models" className="text-sm opacity-70">
+                                Choose a model:
+                            </label>
+                            <select
+                                id="models"
+                                value={model}
+                                onChange={(e) => setModel(e.target.value)}
+                                className="p-2 bg-gray-800 text-[#c5c6c7] border border-gray-600 rounded"
+                            >
+                                {Object.keys(model_provider).map((m) => (
+                                    <option key={m} value={m}>{m}</option>
+                                ))}
+                            </select>
+                        </li>
 
-                        <select
-                            id="models"
-                            value={model}
-                            onChange={(e) => setModel(e.target.value)}
-                            className="p-2 bg-gray-800 text-[#c5c6c7] border border-gray-600 rounded"
-                        >
-                            {Object.keys(model_provider).map((m) => (
-                                <option key={m} value={m}>{m}</option>
-                            ))}
-                        </select>
+                        <li>
+                            <button
+                                onClick={chatInfo}
+                                disabled={loading}
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                            >
+                                {loading ? "..." : "Send"}
+                            </button>
+                        </li>
 
-                        <button
-                            onClick={chatInfo}
-                            disabled={loading}
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                        >
-                            {loading ? "..." : "Send"}
-                        </button>
-                    </div>
-                    <div>
-                        <button
-                            className="px-3 py-2 bg-gray-700 rounded"
-                            onClick={() => {
-                                setMessages([]);
-                                setConversationId(null);
-                                localStorage.removeItem("conversation_id");
-                            }}
-                        >
-                            New Chat
-                        </button>
+                        {/* Accuracy toggle: `group` + `relative` let the tooltip show on hover */}
+                        <li>
+                            <button
+                                type="button"
+                                onClick={toggleAccuracy}
+                                aria-pressed={accuracy === "on"}
+                                aria-label={`Accuracy ${accuracy}`}
+                                className="group relative p-2 rounded hover:bg-gray-800"
+                            >
+                                <LightBulbIcon
+                                    className={`w-5 h-5 transition-colors ${
+                                        accuracy === "on" ? "text-yellow-400" : "text-gray-600"
+                                    }`}
+                                />
+                                <span
+                                    className="absolute left-1/2 bottom-full mb-1 -translate-x-1/2 whitespace-nowrap
+                                    px-2 py-1 text-xs rounded bg-gray-900 text-[#c5c6c7]
+                                    opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                                >
+                                    Accuracy {accuracy}
+                                </span>
+                            </button>
+                        </li>
 
-                    </div>
+                        <li className="w-[275px] flex justify-end">
+                            <button
+                                type="button"
+                                aria-label="New Chat"
+                                className="group relative px-3 py-2 bg-gray-700 rounded hover:bg-gray-600"
+                                onClick={() => {
+                                    setMessages([]);
+                                    setConversationId(null);
+                                    localStorage.removeItem("conversation_id");
+                                }}
+                            >
+                                <ChatBubbleOvalLeftIcon className="w-5 h-5" />
+                                <span
+                                    className="absolute left-1/2 bottom-full mb-1 -translate-x-1/2 whitespace-nowrap
+                                    px-2 py-1 text-xs rounded bg-gray-900 text-[#c5c6c7]
+                                    opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                                >
+                                    New Chat
+                                </span>
+                            </button>
+                        </li>
+                    </ul>
                 </div>
             </section>
         </div>

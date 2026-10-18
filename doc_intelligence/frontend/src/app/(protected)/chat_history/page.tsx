@@ -17,6 +17,9 @@ export default function ChatHistory() {
     async function loadConversations() {
         try {
             const res = await fetch("http://localhost:8000/chat/conversations");
+            if (!res.ok) {
+                throw new Error("Failed to load conversations");
+            }
             const data = await res.json();
             setConversations(data);
         } catch (err) {

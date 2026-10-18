@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timezone
 from sqlalchemy import select
@@ -21,8 +22,9 @@ upload_router = APIRouter(prefix="/upload", tags=["upload"])
 
 def get_base_dir() -> Path:
     return Path(__file__).resolve().parent.parent / "models" / "files"
+
 # ---------------------------------------------------------------------------------------
-# GET
+# normal: GET, dynamic: GET at the bottom
 #----------------------------------------------------------------------------------------
 @upload_router.get("/recent_files")
 def recent_files():
@@ -319,3 +321,23 @@ async def document_deletion(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+# ---------------------------------------------------------------------------------------
+# dynamic: GET at the bottom
+#----------------------------------------------------------------------------------------
+@upload_router.get("/files/view/{filename}")
+def view_file(filename: str):
+    base_dir = get_base_dir().resolve()
+    if Path(filename).name != filename or filename in {".", ".."}:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    file_path = (base_dir / filename).resolve()
+    if file_path.parent != base_dir or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(
+        path=file_path,
+        media_type=None,
+        filename=filename,
+        content_disposition_type="inline",
+    )

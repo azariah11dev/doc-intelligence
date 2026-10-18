@@ -8,6 +8,7 @@ from sqlalchemy import select
 # MUST match conftest.py + app imports
 from src.app import app
 from src.endpoints import contacts
+from src.endpoints import contacts
 from src.models.ticketdb import Tickets
 from src.models.contactsdb import ContactHistory
 
@@ -37,6 +38,19 @@ async def test_open_tickets_empty(test_session: AsyncSession):
 
     assert res.status_code == 200, res.text
     assert res.json() == []
+
+
+@pytest.mark.asyncio
+async def test_view_ticket_attachment(tmp_path, monkeypatch):
+    (tmp_path / "attachment.txt").write_text("ticket attachment")
+    monkeypatch.setattr(contacts, "get_base_dir", lambda: tmp_path)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        res = await ac.get("/contact/tickets/files/attachment.txt")
+
+    assert res.status_code == 200, res.text
+    assert res.text == "ticket attachment"
+    assert res.headers["content-type"].startswith("text/plain")
 
 
 @pytest.mark.asyncio

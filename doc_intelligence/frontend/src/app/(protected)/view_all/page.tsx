@@ -68,7 +68,16 @@ export default function ViewAll() {
             alert("No attachment");
             return;
         }
-        window.open(`http://localhost:8000/${filepath}`, "_blank");
+        const filename = filepath.split(/[/\\]/).pop();
+        if (!filename) {
+            alert("Invalid attachment path");
+            return;
+        }
+        window.open(
+            `http://localhost:8000/contact/tickets/files/${encodeURIComponent(filename)}`,
+            "_blank",
+            "noopener,noreferrer"
+        );
     }
 
     useEffect(() => {

@@ -21,6 +21,7 @@ export default function DemoPage() {
         <iframe
           className="w-full h-full"
           src="https://www.youtube.com/embed/bQD9zk1SHrU"
+          data-testid="demo-video"
           title="Intelli_Doc Demo Video"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen

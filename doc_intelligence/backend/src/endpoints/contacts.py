@@ -1,4 +1,5 @@
-from fastapi import APIRouter,UploadFile, File, HTTPException, Depends, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from pathlib import Path
 from sqlalchemy import select, func
@@ -12,7 +13,7 @@ from src.services.model_dependencies.session_maker import get_async_session
 contact_router = APIRouter(prefix="/contact", tags=["contact"])
 
 # ---------------------------------------------------------------------------------------
-# GET
+# normal: GET, dynamic: GET at the bottom
 #----------------------------------------------------------------------------------------
 @contact_router.get("/open_tickets")
 async def open_tickets(session: AsyncSession = Depends(get_async_session)):
@@ -171,3 +172,22 @@ async def contact(
     except Exception as e:
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ---------------------------------------------------------------------------------------
+# dynamic: GET at the bottom
+#----------------------------------------------------------------------------------------
+@contact_router.get("/tickets/files/{filename}")
+def view_ticket_attachment(filename: str):
+    base_dir = get_base_dir().resolve()
+    if Path(filename).name != filename or filename in {".", ".."}:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+
+    file_path = (base_dir / filename).resolve()
+    if file_path.parent != base_dir or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(
+        path=file_path,
+        filename=filename,
+        content_disposition_type="inline",
+    )

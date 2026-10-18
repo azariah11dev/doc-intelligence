@@ -181,15 +181,12 @@ export default function Documents() {
 
             const data = await res.json().catch(() => ({}));
 
-            if (!res.ok) {
-                alert("Delete failed: " + (data.detail || data.error || res.status));
-                return;
-            }
+            if (!res.ok) throw new Error(`Server returned ${(data.detail || data.error || res.status)}`);
 
             loadFiles();
             loadAuditTrail();
-        } catch {
-            alert("Delete failed: could not reach server");
+        } catch (error) {
+            alert(`Delete failed: ${error}`);
         } finally {
             setDeleting(false)
         }
@@ -214,9 +211,20 @@ export default function Documents() {
     function viewDocumentattachment(filepath: string | null) {
         if (!filepath) {
             alert("No attachment");
+            console.log(filepath);
             return;
         }
-        window.open(`http://localhost:8000/${filepath}`, "_blank");
+        const filename = filepath.split(/[/\\]/).pop();
+        if (!filename) {
+            alert("Invalid attachment path");
+            console.log(filename);
+            return;
+        }
+        window.open(
+            `http://localhost:8000/upload/files/view/${encodeURIComponent(filename)}`,
+            "_blank",
+            "noopener,noreferrer"
+        );
     }
 
     return (

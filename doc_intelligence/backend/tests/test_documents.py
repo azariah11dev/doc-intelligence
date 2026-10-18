@@ -84,6 +84,19 @@ async def test_get_files(temp_files_dir):
     assert "files" in data
     assert data["count"] == 1
 
+
+@pytest.mark.asyncio
+async def test_view_file(temp_files_dir):
+    (temp_files_dir / "view_me.txt").write_text("view this")
+
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        res = await ac.get("/upload/files/view/view_me.txt")
+
+    assert res.status_code == 200, res.text
+    assert res.text == "view this"
+    assert res.headers["content-type"].startswith("text/plain")
+
+
 # -------------------------------------------------------------------
 # TEST: /upload/audit_trail
 # -------------------------------------------------------------------

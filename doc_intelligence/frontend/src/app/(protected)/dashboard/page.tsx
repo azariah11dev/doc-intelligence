@@ -72,12 +72,21 @@ export default function Dashboard() {
   }
 
   function viewDocumentattachment(filepath: string | null) {
-    if (!filepath) {
-      alert("No attachment");
-      return;
+        if (!filepath) {
+            alert("No attachment");
+            return;
+        }
+        const filename = filepath.split(/[/\\]/).pop();
+        if (!filename) {
+            alert("Invalid attachment path");
+            return;
+        }
+        window.open(
+            `http://localhost:8000/upload/files/view/${encodeURIComponent(filename)}`,
+            "_blank",
+            "noopener,noreferrer"
+        );
     }
-    window.open(`http://localhost:8000/${filepath}`, "_blank");
-  }
 
   return (
     <div className="ml-48 px-10 py-12 text-[#c5c6c7]">

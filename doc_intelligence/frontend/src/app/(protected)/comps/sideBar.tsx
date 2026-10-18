@@ -1,6 +1,22 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import {
+  ComputerDesktopIcon,
+  FolderIcon,
+  ChatBubbleOvalLeftEllipsisIcon,
+  ChatBubbleLeftRightIcon,
+  UserGroupIcon,
+  TicketIcon,
+  ArrowLeftStartOnRectangleIcon,
+} from "@heroicons/react/24/outline";
+
+// Shared classes so every row lines up identically.
+// The flex layout lives on the <Link> (the element that directly wraps the
+// icon + label), not on the <li>.
+const itemClass =
+  "flex items-center gap-3 w-full px-4 py-2 text-[#c5c6c7] hover:text-[#45a29e] transition-colors cursor-pointer";
+const iconClass = "w-5 h-5 shrink-0";
 
 export default function SideBar() {
   const [username, setUsername] = useState<string | null>(null);
@@ -39,11 +55,10 @@ export default function SideBar() {
   };
 
   return (
-    <div className="fixed h-screen w-48 flex flex-col justify-between font-semibold pt-4 pb-4 bg-black z-40">
-
+    <div className="fixed h-screen w-48 flex flex-col justify-between font-semibold py-4 bg-black z-40">
       {/* TOP SECTION */}
-      <ul className="flex flex-col text-center">
-        <li className="text-sm text-[#c5c6c7]">
+      <ul className="flex flex-col">
+        <li className="text-sm text-[#c5c6c7] text-center px-2">
           <span className="hover:text-[#45a29e] transition-colors font-bold text-lg">
             {username} ({role})
           </span>
@@ -57,45 +72,64 @@ export default function SideBar() {
           </div>
         </li>
 
-        <li className="p-2 hover:text-[#45a29e] cursor-pointer">
-          <Link href="/dashboard">Dashboard</Link>
+        <li>
+          <Link href="/dashboard" className={itemClass}>
+            <ComputerDesktopIcon className={iconClass} />
+            <span>Dashboard</span>
+          </Link>
         </li>
 
-        <li className="p-2 hover:text-[#45a29e] cursor-pointer">
-          <Link href="/documents">Documents</Link>
+        <li>
+          <Link href="/documents" className={itemClass}>
+            <FolderIcon className={iconClass} />
+            <span>Documents</span>
+          </Link>
         </li>
 
-        <li className="p-2 hover:text-[#45a29e] cursor-pointer">
-          <Link href="/chat">Chat</Link>
+        <li>
+          <Link href="/chat" className={itemClass}>
+            <ChatBubbleOvalLeftEllipsisIcon className={iconClass} />
+            <span>Chat</span>
+          </Link>
         </li>
 
-        <li className="p-2 hover:text-[#45a29e] cursor-pointer">
-          <Link href="/chat_history">Chat History</Link>
+        <li>
+          <Link href="/chat_history" className={itemClass}>
+            <ChatBubbleLeftRightIcon className={iconClass} />
+            <span>Chat History</span>
+          </Link>
         </li>
 
         {role?.toLowerCase() === "admin" && (
-          <li className="p-2 hover:text-[#45a29e] cursor-pointer">
-            <Link href="/user-roles">User Roles</Link>
+          <li>
+            <Link href="/user-roles" className={itemClass}>
+              <UserGroupIcon className={iconClass} />
+              <span>User Roles</span>
+            </Link>
           </li>
         )}
       </ul>
 
       {/* BOTTOM SECTION */}
-      <ul className="flex flex-col gap-2 text-center">
-        <li className="p-2 hover:text-[#45a29e] cursor-pointer">
-          <Link href="/ticket">Ticket</Link>
+      <ul className="flex flex-col">
+        <li>
+          <Link href="/ticket" className={itemClass}>
+            <TicketIcon className={iconClass} />
+            <span>Ticket</span>
+          </Link>
         </li>
 
         <li>
           <Link
             href="/login"
-            className="text-[#c5c6c7] hover:text-[#45a29e] transition-colors"
+            className={itemClass}
             onClick={(event) => {
               event.preventDefault();
               logoutBtn();
             }}
           >
-            Logout
+            <ArrowLeftStartOnRectangleIcon className={iconClass} />
+            <span>Logout</span>
           </Link>
         </li>
       </ul>

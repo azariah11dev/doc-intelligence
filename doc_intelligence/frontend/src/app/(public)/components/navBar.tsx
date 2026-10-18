@@ -5,7 +5,7 @@ export default function Navbar() {
   return (
     <nav className="fixed top-0 left-0 w-full h-16 bg-transparent backdrop-blur-md flex flex-row items-center justify-between px-8 z-50 border-b border-[#1f2833]">
       <div className="flex items-center gap-3">
-        <img src="/logo.png" alt="TaskForge logo" className="w-8 h-8" />
+        <img src="/logo.png" alt="Doc Intelligence logo" className="w-8 h-8" />
         <span className="text-[#c5c6c7] font-bold text-xl hover:text-[#45a29e] transition-colors">
           <Link href="/">Doc Intelligence</Link>
         </span>

@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv (pinned version recommended)
-RUN curl -LsSf https://astral.sh/uv/install.sh | UV_VERSION=0.4.10 sh
+RUN curl -LsSf https://astral.sh/uv/install.sh | UV_VERSION=0.12.6 sh
 
 # Add uv to PATH
 ENV PATH="/root/.local/bin:${PATH}"

@@ -1,0 +1,79 @@
+name: CI Pipeline
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          uv-version: "0.12.6"
+
+      - name: Install backend dependencies
+        working-directory: doc_intelligence/backend
+        run: uv sync --locked --dev
+
+      - name: Run backend tests
+        env:
+          DATABASE_URL: sqlite+aiosqlite:///:memory:
+        working-directory: doc_intelligence/backend
+        run: uv run pytest
+
+  frontend-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        working-directory: doc_intelligence/frontend
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: doc_intelligence/frontend
+        run: npm test
+
+  playwright-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install frontend dependencies
+        working-directory: doc_intelligence/frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: doc_intelligence/frontend
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        working-directory: doc_intelligence/frontend
+        run: npx playwright test
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker images
+        run: docker build -f ./doc_intelligence/backend/dockerfile -t doc_intelligence-backend ./doc_intelligence/backend

@@ -27,6 +27,9 @@ jobs:
       - name: Run backend tests
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          SECRET_KEY: "ci-test-secret-key"
+          ALGORITHM: "HS256"
+          ACCESS_TOKEN_EXPIRE_MINUTES: "30"
         working-directory: doc_intelligence/backend
         run: uv run pytest
 

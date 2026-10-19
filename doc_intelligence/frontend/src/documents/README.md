@@ -27,14 +27,13 @@ npm run dev        # http://localhost:3000
 
 ## Configuration
 
-There is no `.env` for the frontend. The backend URL `http://localhost:8000` is hardcoded in these files, so change it in each place if your API runs elsewhere:
+Set `NEXT_PUBLIC_API_URL` in `.env.local` (see `.env.example`) to point the
+frontend at your backend. API calls use a shared helper that attaches the bearer
+token and redirects to `/login` on unauthorized responses. Protected file
+previews are fetched with the token and opened as blob URLs.
 
-- `src/app/(protected)/chat/page.tsx`
-- `src/app/(protected)/chat_history/page.tsx`
-- `src/app/(protected)/view_all/page.tsx`
-- `src/app/(protected)/submitted_tickets/page.tsx`
-
-(Other pages call the API too; search for `localhost:8000`.) The backend only allows CORS from `localhost:3000`/`5500`, so a different frontend origin also needs a change in `backend/src/app.py`.
+Set `CORS_ORIGINS` in the backend environment to the comma-separated frontend
+origins you deploy from.
 
 ## Routes
 
@@ -61,14 +60,14 @@ Login stores `access_token`, `username`, `role` and `email` in `localStorage`; t
 
 ```bash
 npm test
-npx jest __tests__/public/LoginPage.test.tsx    # one file
+npx jest __tests__/public/LoginPage.test.tsx
 npm test -- --watch
 ```
 
 **Playwright** (`tests/`): browser tests that start `npm run dev` automatically. `tests/fixtures/authenticated.ts` sets a fake `access_token` and mocks the file and conversation endpoints, so no backend is needed.
 
 ```bash
-npx playwright install        # once
+npx playwright install
 npm run test:e2e
 npx playwright test --ui
 npx playwright show-report

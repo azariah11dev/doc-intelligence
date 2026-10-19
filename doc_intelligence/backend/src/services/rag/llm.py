@@ -133,10 +133,9 @@ class GenerationModel:
         if client_gemini is None:
             raise RuntimeError("Gemini is not configured")
 
-        response = client_gemini.models.generate(
-            model=self.generation_model,  # FIXED
+        response = client_gemini.models.generate_content_stream(
+            model=self.generation_model,
             contents=prompt,
-            stream=True,
         )
 
         for chunk in response:

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiFetch } from "@/lib/api";
 
 export default function ContactPage() {
   const [form, setForm] = useState({
@@ -23,7 +24,7 @@ export default function ContactPage() {
 
     try {
       // Replace with your FastAPI endpoint
-      const res = await fetch("http://localhost:8000/contact/", {
+      const res = await apiFetch("/contact/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),

@@ -59,11 +59,13 @@ def temp_files_dir(tmp_path, monkeypatch):
 # TEST: /upload/recent_files
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_recent_files(temp_files_dir):
+async def test_recent_files(temp_files_dir, admin_headers):
     (temp_files_dir / "a.txt").write_text("hello")
     (temp_files_dir / "b.txt").write_text("world")
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         res = await ac.get("/upload/recent_files")
 
     assert res.status_code == 200, res.text
@@ -73,10 +75,12 @@ async def test_recent_files(temp_files_dir):
 # TEST: /upload/files
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_get_files(temp_files_dir):
+async def test_get_files(temp_files_dir, admin_headers):
     (temp_files_dir / "x.txt").write_text("data")
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         res = await ac.get("/upload/files")
 
     assert res.status_code == 200, res.text
@@ -86,10 +90,12 @@ async def test_get_files(temp_files_dir):
 
 
 @pytest.mark.asyncio
-async def test_view_file(temp_files_dir):
+async def test_view_file(temp_files_dir, admin_headers):
     (temp_files_dir / "view_me.txt").write_text("view this")
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         res = await ac.get("/upload/files/view/view_me.txt")
 
     assert res.status_code == 200, res.text
@@ -101,7 +107,7 @@ async def test_view_file(temp_files_dir):
 # TEST: /upload/audit_trail
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_audit_trail(test_session: AsyncSession):
+async def test_audit_trail(test_session: AsyncSession, admin_headers):
     doc = Document(
         id=uuid.uuid4(),
         upload_filename="test.pdf",
@@ -117,7 +123,9 @@ async def test_audit_trail(test_session: AsyncSession):
     test_session.add(doc)
     await test_session.commit()
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         res = await ac.get("/upload/audit_trail")
 
     assert res.status_code == 200, res.text
@@ -127,7 +135,9 @@ async def test_audit_trail(test_session: AsyncSession):
 # TEST: /upload/documents (file upload)
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_upload_document(temp_files_dir, test_session: AsyncSession, monkeypatch):
+async def test_upload_document(
+    temp_files_dir, test_session: AsyncSession, monkeypatch, admin_headers
+):
     (temp_files_dir / "sample.txt").write_text("hello world")
     file_path = temp_files_dir / "sample.txt"
 
@@ -147,7 +157,9 @@ async def test_upload_document(temp_files_dir, test_session: AsyncSession, monke
         fake_delete_vectors
     )
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         with file_path.open("rb") as f:
             res = await ac.post(
                 "/upload/documents",
@@ -197,9 +209,8 @@ async def test_delete_document(
     await test_session.commit()
 
     payload = {
-        "username": "admin",
+        "document_id": str(doc.id),
         "reason": "cleanup",
-        "file_path": str(file_path)
     }
 
     async with AsyncClient(transport=transport, base_url="http://test") as ac:

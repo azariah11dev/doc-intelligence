@@ -16,8 +16,16 @@ test.describe("Documents Page", () => {
           contentType: "application/json",
           body: JSON.stringify({
             files: [
-              "/docs/report.pdf",
-              "/docs/notes.docx",
+              {
+                id: "report-document-id",
+                path: "report.pdf",
+                name: "report.pdf",
+              },
+              {
+                id: "notes-document-id",
+                path: "notes.docx",
+                name: "notes.docx",
+              },
             ],
           }),
         });

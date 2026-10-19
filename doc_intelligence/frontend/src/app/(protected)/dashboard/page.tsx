@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch, openProtectedFile } from "@/lib/api";
 
 type availableFile = {
   path: string;
@@ -29,7 +30,7 @@ export default function Dashboard() {
 
     const fetchDocs = async () => {
       try {
-        const res = await fetch("http://localhost:8000/upload/files");
+        const res = await apiFetch("/upload/files");
         const data = await res.json();
 
         if (typeof data.count === "number") {
@@ -44,7 +45,7 @@ export default function Dashboard() {
       setFilesLoading(true);
       setFilesError("");
       try {
-        const response = await fetch("http://localhost:8000/upload/recent_files");
+        const response = await apiFetch("/upload/recent_files");
         if (!response.ok) throw new Error(`Server returned ${response.status}`);
 
         const data = await response.json();
@@ -83,10 +84,8 @@ export default function Dashboard() {
             alert("Invalid attachment path");
             return;
         }
-        window.open(
-            `http://localhost:8000/upload/files/view/${encodeURIComponent(filename)}`,
-            "_blank",
-            "noopener,noreferrer"
+        void openProtectedFile(
+            `/upload/files/view/${encodeURIComponent(filename)}`
         );
     }
 
@@ -147,9 +146,11 @@ export default function Dashboard() {
                     className="px-6 py-3 text-sm hover:bg-gray-800/60 transition-colors flex items-center justify-between gap-6"
                   >
                     <span className="truncate font-medium">{f.name}</span>
-                    <span className="text-gray-500 text-xs truncate max-w-[40%]">
-                      {f.path}
-                    </span>
+                    {f.path !== f.name && (
+                      <span className="text-gray-500 text-xs truncate max-w-[40%]">
+                        {f.path}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

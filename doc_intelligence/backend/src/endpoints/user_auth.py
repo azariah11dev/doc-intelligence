@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from passlib.context import CryptContext
@@ -8,9 +8,14 @@ from src.schemas.auth_schema import LoginRequest, RegisterRequest, UserResponse,
 from src.models.usersdb import Users
 from src.services.auth.jwt_handler import create_access_token
 from src.services.auth.jwt_dependency import get_current_user
+from src.services.rate_limit import limiter
+from src.schemas.env_schema import settings
+from src.services.utils.error_logger import generate_logs
+
 
 user_auth_router = APIRouter(prefix="/auth", tags=["auth"])
 password_context = CryptContext(schemes=["argon2"], deprecated="auto")
+_DUMMY_PASSWORD_HASH = password_context.hash("nonexistent-user-password")
 
 # ---------------------------------------------------------------------------------------
 # GET
@@ -41,13 +46,16 @@ async def get_all_users(
         raise
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        generate_logs(error=e,endpoint="/auth/all_users")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 # ---------------------------------------------------------------------------------------
 # POST
 #----------------------------------------------------------------------------------------
 @user_auth_router.post("/login")
+@limiter.limit(settings.LOGIN_RATE_LIMIT)
 async def login(
+    request: Request,
     data: LoginRequest, 
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -56,10 +64,9 @@ async def login(
         result = await session.execute(select(Users).where(Users.username == data.username))
         user = result.scalar_one_or_none()
         
-        if not user:
-            raise HTTPException(status_code=401, detail="User does not exist.")
-        if not password_context.verify(data.password, user.password_hash):
-            raise HTTPException(status_code=401, detail="Incorrect password.")
+        password_hash = user.password_hash if user else _DUMMY_PASSWORD_HASH
+        if not password_context.verify(data.password, password_hash) or not user:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
     
         # Create access token
         access_token = create_access_token(data={"sub": user.username})
@@ -75,11 +82,14 @@ async def login(
         raise
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        generate_logs(error=e,endpoint="/auth/all_users")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
     
 @user_auth_router.post("/register")
+@limiter.limit(settings.REGISTER_RATE_LIMIT)
 async def register(
+    request: Request,
     data: RegisterRequest, 
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -114,7 +124,8 @@ async def register(
         raise
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        generate_logs(error=e,endpoint="/auth/all_users")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 # ---------------------------------------------------------------------------------------
 # PUT
@@ -154,7 +165,8 @@ async def assign_role(
         raise
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        generate_logs(error=e,endpoint="/auth/all_users")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 # ---------------------------------------------------------------------------------------
 # DELETE
@@ -191,4 +203,5 @@ async def delete_user(
         raise
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        generate_logs(error=e,endpoint="/auth/all_users")
+        raise HTTPException(status_code=500, detail="Internal server error") from e

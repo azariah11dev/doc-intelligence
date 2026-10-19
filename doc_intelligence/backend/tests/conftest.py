@@ -21,6 +21,8 @@ from sqlalchemy.pool import StaticPool
 from src.app import app
 from src.services.model_dependencies.database import Base
 from src.services.model_dependencies.session_maker import get_async_session
+from src.models.usersdb import Users
+from src.services.auth.jwt_handler import create_access_token
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -67,3 +69,31 @@ def override_db(session_maker):
 async def client():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         yield ac
+
+
+@pytest_asyncio.fixture
+async def admin_headers(test_session):
+    user = Users(
+        username="route-admin",
+        email="route-admin@test.com",
+        password_hash="unused",
+        role="Admin",
+    )
+    test_session.add(user)
+    await test_session.commit()
+    token = create_access_token({"sub": user.username})
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest_asyncio.fixture
+async def user_headers(test_session):
+    user = Users(
+        username="route-user",
+        email="route-user@test.com",
+        password_hash="unused",
+        role="User",
+    )
+    test_session.add(user)
+    await test_session.commit()
+    token = create_access_token({"sub": user.username})
+    return {"Authorization": f"Bearer {token}"}

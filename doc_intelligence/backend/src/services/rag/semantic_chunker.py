@@ -1,10 +1,11 @@
 import re
 import uuid
 import os
+from functools import partial
 from typing import List, Optional, Sequence
 
-from sentence_transformers import SentenceTransformer
 from qdrant_client import QdrantClient
+from starlette.concurrency import run_in_threadpool
 from qdrant_client.models import (
     Distance,
     Modifier,
@@ -23,6 +24,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.documentdb import Document
 from src.schemas.env_schema import settings
 from fastembed import SparseTextEmbedding
+from src.services.rag.model_registry import (
+    get_embedding_model,
+    get_sparse_model,
+)
 
 qdrant_url = settings.QDRANT_URL or os.getenv("QDRANT_URL")
 qdrant = QdrantClient(url=qdrant_url, check_compatibility=False)
@@ -39,7 +44,7 @@ class SemanticChunker:
         self,
         session: AsyncSession,
         model_name: str = "BAAI/bge-m3",
-        max_chunk_size: int = 2000,
+        max_chunk_size: int = 3000,
         overlap_ratio: float = 0.15,
         dense_vector_name: str = "dense",
         sparse_vector_name: str = "sparse",
@@ -49,7 +54,7 @@ class SemanticChunker:
         self.dense_vector_name = dense_vector_name
         self.sparse_vector_name = sparse_vector_name
 
-        self.model = SentenceTransformer(model_name)
+        self.model_name = model_name
         self.max_chunk_size = max_chunk_size
         self.overlap_chars = int(max_chunk_size * overlap_ratio)
 
@@ -57,13 +62,6 @@ class SemanticChunker:
             re.compile(p, re.MULTILINE) for p in SECTION_PATTERNS
         ]
 
-        # Cache embedding dimension once
-        try:
-            self.vector_dim = self.model._first_module().get_output_dim()
-        except Exception:
-            self.vector_dim = len(self.model.encode("probe"))
-
-        self._sparse_encoder: Optional[SparseTextEmbedding] = None
 
     # ------------------------------------------------------------------
     # Document status
@@ -315,7 +313,7 @@ class SemanticChunker:
     # Batch embedding
     # ------------------------------------------------------------------
     def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        vectors = self.model.encode(
+        vectors = get_embedding_model(self.model_name).encode(
             texts,
             normalize_embeddings=True,
             show_progress_bar=False,
@@ -328,9 +326,7 @@ class SemanticChunker:
     # ------------------------------------------------------------------
     @property
     def sparse_encoder(self) -> SparseTextEmbedding:
-        if self._sparse_encoder is None:
-            self._sparse_encoder = SparseTextEmbedding(model_name="Qdrant/bm25")
-        return self._sparse_encoder
+        return get_sparse_model("Qdrant/bm25")
 
     def embed_sparse_batch(self, texts: Sequence[str]) -> List[SparseVector]:
         return [
@@ -346,11 +342,19 @@ class SemanticChunker:
             self._assert_hybrid_schema(collection_name)
             return
 
+        vector_dim = get_embedding_model(
+            self.model_name
+        ).get_sentence_embedding_dimension()
+        if vector_dim is None:
+            raise RuntimeError(
+                f"Could not determine embedding dimension for '{self.model_name}'"
+            )
+
         self.qdrant.create_collection(
             collection_name=collection_name,
             vectors_config={
                 self.dense_vector_name: VectorParams(
-                    size=self.vector_dim,
+                    size=vector_dim,
                     distance=Distance.COSINE,
                 ),
             },
@@ -396,19 +400,28 @@ class SemanticChunker:
             return
 
         try:
-            chunks = self.semantic_chunk(document_text)
+            chunks = await run_in_threadpool(self.semantic_chunk, document_text)
             if not chunks:
                 return
 
-            self.ensure_hybrid_collection(collection_name)
+            await run_in_threadpool(
+                self.ensure_hybrid_collection,
+                collection_name,
+            )
 
             total_chunks = len(chunks)
 
             for start in range(0, total_chunks, batch_size):
                 batch_chunks = chunks[start : start + batch_size]
 
-                dense_vectors = self.embed_batch(batch_chunks)
-                sparse_vectors = self.embed_sparse_batch(batch_chunks)
+                dense_vectors = await run_in_threadpool(
+                    self.embed_batch,
+                    batch_chunks,
+                )
+                sparse_vectors = await run_in_threadpool(
+                    self.embed_sparse_batch,
+                    batch_chunks,
+                )
 
                 points: List[PointStruct] = []
                 for offset, (chunk, dense_vec, sparse_vec) in enumerate(
@@ -432,7 +445,13 @@ class SemanticChunker:
                         )
                     )
 
-                self.qdrant.upsert(collection_name=collection_name, points=points)
+                await run_in_threadpool(
+                    partial(
+                        self.qdrant.upsert,
+                        collection_name=collection_name,
+                        points=points,
+                    )
+                )
 
             if document_id_for_status:
                 await self.update_document_status(

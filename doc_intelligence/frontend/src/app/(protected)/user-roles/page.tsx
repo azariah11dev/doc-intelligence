@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
 
 export default function UserRolesPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -16,7 +17,7 @@ export default function UserRolesPage() {
   useEffect(() => {
     const loadUsers = async () => {
       try {
-        const response = await fetch("http://localhost:8000/auth/all_users", {
+        const response = await apiFetch("/auth/all_users", {
           method: "GET",
           headers: {
             Authorization: `Bearer ${localStorage.getItem("access_token")}`,
@@ -42,7 +43,7 @@ export default function UserRolesPage() {
     setSaving(username);
 
     try {
-      const response = await fetch("http://localhost:8000/auth/assign_role", {
+      const response = await apiFetch("/auth/assign_role", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -78,7 +79,7 @@ export default function UserRolesPage() {
     setDeleting(usernameToDelete);
 
     try {
-      const res = await fetch("http://localhost:8000/auth/delete_user", {
+      const res = await apiFetch("/auth/delete_user", {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

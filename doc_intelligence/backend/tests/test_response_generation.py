@@ -3,6 +3,7 @@ from httpx import AsyncClient, ASGITransport
 import uuid
 
 from src.app import app
+from src.schemas.env_schema import settings
 
 transport = ASGITransport(app=app)
 
@@ -40,17 +41,22 @@ def mock_rag_error(monkeypatch):
 # TEST: Successful streaming
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_response_generation_stream_success(mock_rag_success):
+async def test_response_generation_stream_success(mock_rag_success, admin_headers, monkeypatch):
     payload = {
         "question": "Hello?",
-        "username": "alice",
         "rewrite_model": None,
         "generation_model": "gpt",
         "provider": "openai",
         "id": str(uuid.uuid4())
     }
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    monkeypatch.setattr(settings, "ENABLED_PROVIDERS", "openai")
+    monkeypatch.setattr(settings, "ENABLED_MODELS", "openai:gpt")
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers=admin_headers,
+    ) as ac:
         res = await ac.post("/response_generation/answer", json=payload)
 
     assert res.status_code == 200, res.text
@@ -64,36 +70,45 @@ async def test_response_generation_stream_success(mock_rag_success):
 # TEST: Streaming with internal generator error
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_response_generation_stream_error(mock_rag_error):
+async def test_response_generation_stream_error(mock_rag_error, admin_headers, monkeypatch):
     payload = {
         "question": "Hello?",
-        "username": "alice",
         "rewrite_model": None,
         "generation_model": "gpt",
         "provider": "openai",
         "id": str(uuid.uuid4())
     }
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    monkeypatch.setattr(settings, "ENABLED_PROVIDERS", "openai")
+    monkeypatch.setattr(settings, "ENABLED_MODELS", "openai:gpt")
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers=admin_headers,
+    ) as ac:
         res = await ac.post("/response_generation/answer", json=payload)
 
     assert res.status_code == 200, res.text
 
     body = res.text
-    assert "Error generating answer:" in body
-    assert "boom" in body
+    assert "Error generating answer." in body
+    assert "Please try again" in body
 
 # -------------------------------------------------------------------
 # TEST: Missing fields → FastAPI validation error
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_response_generation_validation_error():
+async def test_response_generation_validation_error(admin_headers):
     payload = {
         "question": "Hello?",
         # Missing required fields
     }
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers=admin_headers,
+    ) as ac:
         res = await ac.post("/response_generation/answer", json=payload)
 
     assert res.status_code == 422, res.text
@@ -102,7 +117,7 @@ async def test_response_generation_validation_error():
 # TEST: Ensure correct call parameters passed to RAG
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_response_generation_parameter_forwarding(monkeypatch):
+async def test_response_generation_parameter_forwarding(monkeypatch, admin_headers):
     captured = {}
 
     class CaptureRAG:
@@ -118,19 +133,24 @@ async def test_response_generation_parameter_forwarding(monkeypatch):
     id = str(uuid.uuid4())
     payload = {
         "question": "Test?",
-        "username": "bob",
         "rewrite_model": "rewrite",
         "generation_model": "gpt",
         "provider": "openai",
         "id": id
     }
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    monkeypatch.setattr(settings, "ENABLED_PROVIDERS", "openai")
+    monkeypatch.setattr(settings, "ENABLED_MODELS", "openai:gpt,ollama:rewrite")
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers=admin_headers,
+    ) as ac:
         res = await ac.post("/response_generation/answer", json=payload)
 
     assert res.status_code == 200, res.text
     assert captured["query"] == "Test?"
-    assert captured["username"] == "bob"
+    assert captured["username"] == "route-admin"
     assert captured["rewrite_model"] == "rewrite"
     assert captured["generation_model"] == "gpt"
     assert captured["provider"] == "openai"

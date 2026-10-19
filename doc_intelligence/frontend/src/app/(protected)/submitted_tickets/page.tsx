@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { apiFetch, openProtectedFile } from "@/lib/api";
 
 type Ticket = {
     id: string;
@@ -35,7 +36,7 @@ export default function SubmittedTickets() {
 
     async function loadTickets() {
         try {
-            const res = await fetch("http://localhost:8000/contact/open_tickets", {
+            const res = await apiFetch("/contact/open_tickets", {
                 method: "GET",
             });
             if (!res.ok) {
@@ -59,8 +60,8 @@ export default function SubmittedTickets() {
                 ticket_id: id,
                 new_status: newStatus,
             });
-            const res = await fetch(
-                `http://localhost:8000/contact/update_status?${params}`,
+            const res = await apiFetch(
+                `/contact/update_status?${params}`,
                 {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
@@ -89,10 +90,8 @@ export default function SubmittedTickets() {
             alert("Invalid attachment path");
             return;
         }
-        window.open(
-            `http://localhost:8000/contact/tickets/files/${encodeURIComponent(filename)}`,
-            "_blank",
-            "noopener,noreferrer"
+        void openProtectedFile(
+            `/contact/tickets/files/${encodeURIComponent(filename)}`
         );
     }
 

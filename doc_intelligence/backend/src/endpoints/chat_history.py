@@ -5,16 +5,25 @@ import uuid
 
 from src.models.user_querydb import Conversation, ChatMessage, MessageContext
 from src.services.model_dependencies.session_maker import get_async_session
+from src.services.auth.jwt_dependency import get_current_user
+from src.models.usersdb import Users
+from src.services.utils.error_logger import generate_logs
 
-chat_router = APIRouter(prefix="/chat")
+
+chat_router = APIRouter(
+    prefix="/chat",
+    dependencies=[Depends(get_current_user)],
+)
 
 @chat_router.get("/conversations")
 async def list_conversations(
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: Users = Depends(get_current_user),
 ):
     try:
         stmt = (
             select(Conversation)
+            .where(Conversation.username == current_user.username)
             .order_by(Conversation.last_updated.desc())
         )
         result = await session.execute(stmt)
@@ -31,13 +40,15 @@ async def list_conversations(
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        generate_logs(error=e,endpoint="/chat/conversations")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @chat_router.get("/conversation/{conversation_id}")
 async def get_conversation_history(
     conversation_id: uuid.UUID,
-    session: AsyncSession = Depends(get_async_session)
+    session: AsyncSession = Depends(get_async_session),
+    current_user: Users = Depends(get_current_user),
 ):
     try:
         # 1. Fetch conversation metadata
@@ -45,7 +56,10 @@ async def get_conversation_history(
         convo_result = await session.execute(convo_stmt)
         conversation = convo_result.scalar_one_or_none()
 
-        if not conversation:
+        if not conversation or (
+            conversation.username != current_user.username
+            and current_user.role != "Admin"
+        ):
             raise HTTPException(status_code=404, detail="Conversation not found")
 
         # 2. Fetch all messages for this conversation
@@ -92,4 +106,5 @@ async def get_conversation_history(
         raise
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        generate_logs(error=e,endpoint=f"/chat/conversation/{conversation_id}")
+        raise HTTPException(status_code=500, detail="Internal server error") from e

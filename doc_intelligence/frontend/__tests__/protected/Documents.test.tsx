@@ -18,7 +18,12 @@ describe("Documents", () => {
       value: jest.fn(),
     });
 
-    window.open = jest.fn();
+    window.open = jest.fn(() => ({
+      location: { href: "" },
+      opener: null,
+      close: jest.fn(),
+    } as unknown as Window));
+    URL.createObjectURL = jest.fn(() => "blob:test-file");
   });
 
   function mockInitialLoad() {
@@ -28,8 +33,8 @@ describe("Documents", () => {
         ok: true,
         json: async () => ({
           files: [
-            "/tmp/test.pdf",
-            "/tmp/test.docx",
+            { id: "doc-1", path: "test.pdf", name: "test.pdf" },
+            { id: "doc-2", path: "test.docx", name: "test.docx" },
           ],
         }),
       })
@@ -144,6 +149,10 @@ describe("Documents", () => {
     const user = userEvent.setup();
 
     mockInitialLoad();
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      blob: async () => new Blob(["file"]),
+    });
 
     render(<Documents />);
 
@@ -151,11 +160,11 @@ describe("Documents", () => {
 
     await user.dblClick(file.closest("li")!);
 
-    expect(window.open).toHaveBeenCalledWith(
+    expect(fetch).toHaveBeenLastCalledWith(
       "http://localhost:8000/upload/files/view/test.pdf",
-      "_blank",
-      "noopener,noreferrer"
+      { headers: { Authorization: "Bearer token" } }
     );
+    expect(window.open).toHaveBeenCalledWith("about:blank", "_blank");
   });
 
   it("opens delete confirmation", async () => {

@@ -12,7 +12,12 @@ describe("ViewAll", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    window.open = jest.fn();
+    window.open = jest.fn(() => ({
+      location: { href: "" },
+      opener: null,
+      close: jest.fn(),
+    } as unknown as Window));
+    URL.createObjectURL = jest.fn(() => "blob:test-file");
 
     Object.defineProperty(window, "alert", {
       writable: true,
@@ -112,6 +117,7 @@ describe("ViewAll", () => {
         "http://localhost:8000/contact/all_tickets",
         {
           method: "GET",
+          headers: {},
         }
       );
     });
@@ -120,10 +126,15 @@ describe("ViewAll", () => {
   it("opens attachment", async () => {
     const user = userEvent.setup();
 
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => [mockTicket],
-    });
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [mockTicket],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        blob: async () => new Blob(["file"]),
+      });
 
     render(<ViewAll />);
 
@@ -134,10 +145,9 @@ describe("ViewAll", () => {
 
     await user.click(button);
 
-    expect(window.open).toHaveBeenCalledWith(
+    expect(fetch).toHaveBeenLastCalledWith(
       "http://localhost:8000/contact/tickets/files/error.png",
-      "_blank",
-      "noopener,noreferrer"
+      { headers: {} }
     );
   });
 

@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { apiFetch, openProtectedFile } from "@/lib/api";
 
 type Ticket = {
     id?: string;
@@ -47,7 +48,7 @@ export default function ViewAll() {
 
     async function loadAllTickets() {
         try {
-            const res = await fetch("http://localhost:8000/contact/all_tickets", {
+            const res = await apiFetch("/contact/all_tickets", {
                 method: "GET",
             });
             if (!res.ok) throw new Error(`Failed to load tickets: ${res.status}`);
@@ -73,10 +74,8 @@ export default function ViewAll() {
             alert("Invalid attachment path");
             return;
         }
-        window.open(
-            `http://localhost:8000/contact/tickets/files/${encodeURIComponent(filename)}`,
-            "_blank",
-            "noopener,noreferrer"
+        void openProtectedFile(
+            `/contact/tickets/files/${encodeURIComponent(filename)}`
         );
     }
 

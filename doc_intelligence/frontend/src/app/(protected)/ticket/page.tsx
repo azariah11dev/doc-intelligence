@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { apiFetch } from "@/lib/api";
 
 export default function TicketPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -25,8 +26,6 @@ export default function TicketPage() {
 
     try {
       const formData = new FormData();
-      formData.append("username", localStorage.getItem("username") || "");
-      formData.append("email", localStorage.getItem("email") || "");
       formData.append("subject", subject);
       formData.append("description", description);
       formData.append("priority", priority);
@@ -36,7 +35,7 @@ export default function TicketPage() {
         formData.append("file", file);
       }
 
-      const response = await fetch("http://localhost:8000/contact/ticket", {
+      const response = await apiFetch("/contact/ticket", {
         method: "POST",
         body: formData,
       });

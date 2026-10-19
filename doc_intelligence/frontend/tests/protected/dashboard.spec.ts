@@ -165,18 +165,28 @@ test.describe("Dashboard", () => {
       async (route) => {
         await route.fulfill({
           status: 200,
-          body: JSON.stringify([
-            "/tmp/test.pdf",
-          ]),
+          body: JSON.stringify(["test.pdf"]),
         });
       }
     );
+    let fileRequestAuthorization: string | undefined;
     await page.context().route(
       "http://localhost:8000/upload/files/view/test.pdf",
       async (route) => {
+        const corsHeaders = {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Headers": "Authorization",
+          "Access-Control-Allow-Methods": "GET, OPTIONS",
+        };
+        if (route.request().method() === "OPTIONS") {
+          await route.fulfill({ status: 204, headers: corsHeaders });
+          return;
+        }
+        fileRequestAuthorization = route.request().headers().authorization;
         await route.fulfill({
           status: 200,
-          contentType: "text/html",
+          contentType: "application/pdf",
+          headers: corsHeaders,
           body: "mock document",
         });
       }
@@ -193,8 +203,9 @@ test.describe("Dashboard", () => {
 
     const popup = await popupPromise;
 
-    expect(popup.url()).toContain(
-      "/upload/files/view/test.pdf"
-    );
+    await expect
+      .poll(() => fileRequestAuthorization)
+      .toBe("Bearer playwright-test-token");
+    expect(popup).toBeDefined();
   });
 });

@@ -91,7 +91,8 @@ describe("ChatHistory", () => {
 
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
-        "http://localhost:8000/chat/conversations"
+        "http://localhost:8000/chat/conversations",
+        { headers: {} }
       );
     });
   });

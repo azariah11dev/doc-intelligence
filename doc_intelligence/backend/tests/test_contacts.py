@@ -32,8 +32,10 @@ def temp_files_dir(tmp_path, monkeypatch):
 # Tests
 # -------------------------------------------------------------------
 @pytest.mark.asyncio
-async def test_open_tickets_empty(test_session: AsyncSession):
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+async def test_open_tickets_empty(test_session: AsyncSession, admin_headers):
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         res = await ac.get("/contact/open_tickets")
 
     assert res.status_code == 200, res.text
@@ -41,11 +43,13 @@ async def test_open_tickets_empty(test_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_view_ticket_attachment(tmp_path, monkeypatch):
+async def test_view_ticket_attachment(tmp_path, monkeypatch, admin_headers):
     (tmp_path / "attachment.txt").write_text("ticket attachment")
     monkeypatch.setattr(contacts, "get_base_dir", lambda: tmp_path)
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         res = await ac.get("/contact/tickets/files/attachment.txt")
 
     assert res.status_code == 200, res.text
@@ -54,7 +58,7 @@ async def test_view_ticket_attachment(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_open_tickets(test_session: AsyncSession):
+async def test_open_tickets(test_session: AsyncSession, admin_headers):
     t1 = Tickets(username="alice", email="a@a.com", subject="S1", description="D1", priority="high", status=None)
     t2 = Tickets(username="bob", email="b@b.com", subject="S2", description="D2", priority="low", status="open")
     t3 = Tickets(username="charlie", email="c@c.com", subject="S3", description="D3", priority="low", status="completed")
@@ -62,7 +66,9 @@ async def test_open_tickets(test_session: AsyncSession):
     test_session.add_all([t1, t2, t3])
     await test_session.commit()
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         res = await ac.get("/contact/open_tickets")
 
     assert res.status_code == 200, res.text
@@ -76,14 +82,16 @@ async def test_open_tickets(test_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_all_tickets(test_session: AsyncSession):
+async def test_all_tickets(test_session: AsyncSession, admin_headers):
     t1 = Tickets(username="alice", email="a@a.com", subject="S1", description="D1", priority="high")
     t2 = Tickets(username="bob", email="b@b.com", subject="S2", description="D2", priority="low")
 
     test_session.add_all([t1, t2])
     await test_session.commit()
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         res = await ac.get("/contact/all_tickets")
 
     assert res.status_code == 200, res.text
@@ -92,8 +100,10 @@ async def test_all_tickets(test_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_update_status_not_found(test_session: AsyncSession):
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+async def test_update_status_not_found(test_session: AsyncSession, admin_headers):
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         res = await ac.put("/contact/update_status", params={
             "ticket_id": str(uuid.uuid4()),
             "new_status": "closed"
@@ -104,13 +114,15 @@ async def test_update_status_not_found(test_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_update_status(test_session: AsyncSession):
+async def test_update_status(test_session: AsyncSession, admin_headers):
     t1 = Tickets(username="alice", email="a@a.com", subject="S1", description="D1", priority="high", status="open")
     test_session.add(t1)
     await test_session.commit()
     await test_session.refresh(t1)
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         res = await ac.put("/contact/update_status", params={
             "ticket_id": str(t1.id),
             "new_status": "closed"
@@ -125,13 +137,13 @@ async def test_update_status(test_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_submit_ticket_no_file(test_session: AsyncSession):
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+async def test_submit_ticket_no_file(test_session: AsyncSession, admin_headers):
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         res = await ac.post(
             "/contact/ticket",
             data={
-                "username": "alice",
-                "email": "a@a.com",
                 "subject": "Help",
                 "description": "Something broke",
                 "priority": "high"
@@ -148,18 +160,20 @@ async def test_submit_ticket_no_file(test_session: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_submit_ticket_with_file(temp_files_dir, test_session: AsyncSession):
+async def test_submit_ticket_with_file(
+    temp_files_dir, test_session: AsyncSession, admin_headers
+):
     (temp_files_dir / "test.txt").write_text("hello world")
     file_path = temp_files_dir / "test.txt"
 
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=admin_headers
+    ) as ac:
         with file_path.open("rb") as f:
             res = await ac.post(
                 "/contact/ticket",
                 files={"file": ("test.txt", f, "text/plain")},
                 data={
-                    "username": "bob",
-                    "email": "b@b.com",
                     "subject": "Upload",
                     "description": "Uploading file",
                     "priority": "low"
@@ -192,3 +206,15 @@ async def test_contact_form(test_session: AsyncSession):
     rows = stmt.scalars().all()
     assert len(rows) == 1
     assert rows[0].username == "alice"
+
+
+@pytest.mark.asyncio
+async def test_ticket_review_rejects_non_admin(
+    test_session: AsyncSession, user_headers
+):
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=user_headers
+    ) as ac:
+        response = await ac.get("/contact/open_tickets")
+
+    assert response.status_code == 403, response.text

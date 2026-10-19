@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { apiFetch } from "@/lib/api";
 import modelProvider from "../comps/model_provider.json" with { type: "json" };
 import {
     LightBulbIcon,
@@ -27,7 +28,7 @@ export default function Chat() {
 
     async function loadConversation(convoId: string) {
         try {
-            const res = await fetch(`http://localhost:8000/chat/conversation/${convoId}`);
+            const res = await apiFetch(`/chat/conversation/${convoId}`);
             if (!res.ok) throw new Error("Failed to load conversation");
 
             const data = await res.json();
@@ -101,12 +102,11 @@ export default function Chat() {
         ]);
 
         try {
-            const response = await fetch("http://localhost:8000/response_generation/answer", {
+            const response = await apiFetch("/response_generation/answer", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     question: q,
-                    username: localStorage.getItem("username"),
                     rewrite_model: rewriteModel,
                     generation_model: model,
                     provider: model_provider[model],

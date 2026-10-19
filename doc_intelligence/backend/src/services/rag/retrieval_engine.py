@@ -1,12 +1,9 @@
-from sentence_transformers import SentenceTransformer, CrossEncoder
 from qdrant_client.models import ScoredPoint
 from qdrant_client import QdrantClient
 from typing import List, Literal, AsyncIterator, Dict
 import os
-from typing import List
-from fastembed import SparseTextEmbedding
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.concurrency import iterate_in_threadpool
+from starlette.concurrency import iterate_in_threadpool, run_in_threadpool
 from sqlalchemy import select
 import uuid
 from sqlalchemy.sql import func
@@ -20,6 +17,11 @@ from qdrant_client.models import (
 )
 
 from src.services.rag.llm import GenerationModel
+from src.services.rag.model_registry import (
+    get_embedding_model,
+    get_reranker_model,
+    get_sparse_model,
+)
 from src.models.user_querydb import Conversation, ChatMessage, MessageContext
 from src.schemas.env_schema import settings
 
@@ -36,13 +38,12 @@ class queryRetrieval:
         dense_vector_name: str = "dense",
         sparse_vector_name: str = "sparse"
     ):
-        self.model = SentenceTransformer(model_name)
-        self.reranker = CrossEncoder(reranker_name)
+        self.model_name = model_name
+        self.reranker_name = reranker_name
         self.collection_name = collection_name
         self.dense_vector_name = dense_vector_name
         self.sparse_vector_name = sparse_vector_name
         self.qdrant = qdrant
-        self._sparse_encoder = None
         self.session = session
 
     # Chat logs
@@ -92,9 +93,7 @@ class queryRetrieval:
     # Sparse encoder
     @property
     def sparse_encoder(self):
-        if self._sparse_encoder is None:
-            self._sparse_encoder = SparseTextEmbedding(model_name="Qdrant/bm25")
-        return self._sparse_encoder
+        return get_sparse_model("Qdrant/bm25")
 
     def embed_sparse_query(self, text: str) -> SparseVector:
         emb = next(iter(self.sparse_encoder.query_embed(text)))
@@ -102,7 +101,10 @@ class queryRetrieval:
 
     # Dense embedding
     def embed_query(self, query: str) -> List[float]:
-        return self.model.encode(query, normalize_embeddings=True).tolist()
+        return get_embedding_model(self.model_name).encode(
+            query,
+            normalize_embeddings=True,
+        ).tolist()
 
     # Hybrid search
     def hybrid_search(self, query: str, limit: int = 10, prefetch_limit: int = 50, query_filter=None):
@@ -132,18 +134,21 @@ class queryRetrieval:
         return result.points
 
     # Rerank
-    def rerank(self, query: str, results: List[ScoredPoint], top_k: int = 5):
+    def rerank(self, query: str, results: List[ScoredPoint], top_k: int = 10):
         if not results:
             return []
 
         pairs = [[query, r.payload["text"]] for r in results]
-        scores = self.reranker.predict(pairs, batch_size=32)
+        scores = get_reranker_model(self.reranker_name).predict(
+            pairs,
+            batch_size=32,
+        )
 
         reranked = sorted(zip(results, scores), key=lambda x: x[1], reverse=True)
         return reranked[:top_k]
 
     # Retrieval orchestrator
-    def retrieve(self, query: str, k: int = 10):
+    def retrieve(self, query: str, k: int = 20):
         query = query.strip()
 
         candidates = self.hybrid_search(query, limit=k)
@@ -212,14 +217,17 @@ class queryRetrieval:
 
         # 1. Rephrase
         if rewrite_model:
-            rewritten_query = generation.rephrase_query(query)
+            rewritten_query = await run_in_threadpool(
+                generation.rephrase_query,
+                query,
+            )
             rephrase = rewritten_query
         else:
             rewritten_query = query
             rephrase = None
 
          # 2. Retrieve
-        retrieved = self.retrieve(rewritten_query)
+        retrieved = await run_in_threadpool(self.retrieve, rewritten_query)
 
         # Single-line, grouped citation string — used both for the
         # response the user sees and the context that gets logged.

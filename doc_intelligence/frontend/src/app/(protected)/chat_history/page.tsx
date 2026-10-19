@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 type Conversation = {
@@ -16,7 +17,7 @@ export default function ChatHistory() {
 
     async function loadConversations() {
         try {
-            const res = await fetch("http://localhost:8000/chat/conversations");
+            const res = await apiFetch("/chat/conversations");
             if (!res.ok) {
                 throw new Error("Failed to load conversations");
             }

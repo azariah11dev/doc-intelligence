@@ -9,7 +9,7 @@ docker compose up
 docker compose up -d
 
 # Rebuild images and start fresh
-docker compose up --build
+docker compose up -d --force-recreate app
 
 # Stop all running services
 docker compose down

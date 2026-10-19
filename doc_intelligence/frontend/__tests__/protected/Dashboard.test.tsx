@@ -23,7 +23,13 @@ describe("Dashboard", () => {
       value: jest.fn(),
     });
 
-    window.open = jest.fn();
+    window.open = jest.fn(() => ({
+      location: { href: "" },
+      opener: null,
+      close: jest.fn(),
+    } as unknown as Window));
+    URL.createObjectURL = jest.fn(() => "blob:test-file");
+    URL.createObjectURL = jest.fn(() => "blob:test-file");
   });
 
   it("renders dashboard heading", async () => {
@@ -168,6 +174,10 @@ describe("Dashboard", () => {
         json: async () => [
           "/tmp/file1.pdf",
         ],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        blob: async () => new Blob(["file"]),
       });
 
     render(<Dashboard />);
@@ -179,11 +189,11 @@ describe("Dashboard", () => {
 
     await user.dblClick(doc);
 
-    expect(window.open).toHaveBeenCalledWith(
+    expect(fetch).toHaveBeenLastCalledWith(
       "http://localhost:8000/upload/files/view/file1.pdf",
-      "_blank",
-      "noopener,noreferrer"
+      { headers: {} }
     );
+    expect(window.open).toHaveBeenCalledWith("about:blank", "_blank");
   });
 
   it("navigates to documents page", async () => {

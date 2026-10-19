@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { apiFetch, openProtectedFile } from "@/lib/api";
 
 type FileEntry = {
+    id: string | null;
     path: string;
     name: string;
 };
@@ -40,10 +42,6 @@ function statusColor(status: string): string {
 }
 
 export default function Documents() {
-    // --- Current user ---
-    // TODO: replace with your real auth source (context, session, JWT, etc.).
-    // These were undefined in the original code, which caused the errors.
-    const [username, setUsername] = useState("");
     const [isAdmin, setIsAdmin] = useState(false);
 
     // --- Upload state ---
@@ -65,7 +63,7 @@ export default function Documents() {
 
     // --- File deletion ---
     const [showConfirm, setShowConfirm] = useState(false);
-    const [pendingDeletePath, setPendingDeletePath] = useState<string | null>(null);
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [reason, setReason] = useState("");
 
@@ -73,13 +71,19 @@ export default function Documents() {
         setFilesLoading(true);
         setFilesError("");
         try {
-            const res = await fetch("http://localhost:8000/upload/files");
+            const res = await apiFetch("/upload/files");
             if (!res.ok) throw new Error(`Server returned ${res.status}`);
             const data = await res.json();
-            const parsed: FileEntry[] = (data.files || []).map((p: string) => ({
-                path: p,
-                name: p.split(/[/\\]/).pop() || p,
-            }));
+            const parsed: FileEntry[] = (data.files || []).map(
+                (item: string | FileEntry) =>
+                    typeof item === "string"
+                        ? {
+                              id: null,
+                              path: item,
+                              name: item.split(/[/\\]/).pop() || item,
+                          }
+                        : item
+            );
             setFiles(parsed);
         } catch (err) {
             setFilesError(
@@ -94,7 +98,7 @@ export default function Documents() {
         setAuditLoading(true);
         setAuditError("");
         try {
-            const res = await fetch("http://localhost:8000/upload/audit_trail");
+            const res = await apiFetch("/upload/audit_trail");
             if (!res.ok) throw new Error(`Server returned ${res.status}`);
             const data = await res.json();
             setAuditRows(data);
@@ -110,7 +114,6 @@ export default function Documents() {
     useEffect(() => {
         // auth display logic
         try {
-            setUsername(localStorage.getItem("username") || "");
             setIsAdmin(localStorage.getItem("role") === "Admin");
         } catch {
             // Pass
@@ -132,7 +135,7 @@ export default function Documents() {
         formData.append("file", file);
 
         try {
-            const res = await fetch("http://localhost:8000/upload/documents", {
+            const res = await apiFetch("/upload/documents", {
                 method: "POST",
                 body: formData,
             });
@@ -157,24 +160,22 @@ export default function Documents() {
         }
     }
 
-    async function handleDelete(filePath: string) {
-        setDeleting(true)
-
+    async function handleDelete(documentId: string) {
         if (!reason) {
             alert("You can't delete a file without a reason");
             return;
         }
 
+        setDeleting(true);
         try {
-            const res = await fetch("http://localhost:8000/upload/delete_document", {
+            const res = await apiFetch("/upload/delete_document", {
                 method: "DELETE",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${localStorage.getItem("access_token")}`,
                 },
                 body: JSON.stringify({
-                    file_path: filePath,
-                    username: username,
+                    document_id: documentId,
                     reason: reason,
                 }),
             });
@@ -220,10 +221,8 @@ export default function Documents() {
             console.log(filename);
             return;
         }
-        window.open(
-            `http://localhost:8000/upload/files/view/${encodeURIComponent(filename)}`,
-            "_blank",
-            "noopener,noreferrer"
+        void openProtectedFile(
+            `/upload/files/view/${encodeURIComponent(filename)}`
         );
     }
 
@@ -297,16 +296,19 @@ export default function Documents() {
                                     >
                                         <span className="truncate">{f.name}</span>
 
-                                        <span className="text-gray-500 text-xs truncate max-w-[40%]">
-                                            {f.path}
-                                        </span>
+                                        {f.path !== f.name && (
+                                            <span className="text-gray-500 text-xs truncate max-w-[40%]">
+                                                {f.path}
+                                            </span>
+                                        )}
 
                                         {isAdmin && (
                                             <button
                                                 onClick={() => {
-                                                    setPendingDeletePath(f.path);
+                                                    setPendingDeleteId(f.id);
                                                     setShowConfirm(true);
                                                 }}
+                                                disabled={!f.id}
                                                 className="text-red-400 hover:text-red-300 text-xs border border-red-400 px-2 py-1 rounded"
                                             >
                                                 Delete
@@ -346,7 +348,7 @@ export default function Documents() {
                                     <button
                                         onClick={() => {
                                             setShowConfirm(false);
-                                            setPendingDeletePath(null);
+                                            setPendingDeleteId(null);
                                         }}
                                         className="px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-sm"
                                     >
@@ -355,11 +357,11 @@ export default function Documents() {
 
                                     <button
                                         onClick={async () => {
-                                            if (pendingDeletePath) {
-                                                await handleDelete(pendingDeletePath);
+                                            if (pendingDeleteId) {
+                                                await handleDelete(pendingDeleteId);
                                             }
                                             setShowConfirm(false);
-                                            setPendingDeletePath(null);
+                                            setPendingDeleteId(null);
                                         }}
                                         className="px-3 py-1 rounded bg-red-600 hover:bg-red-500 text-sm"
                                     >

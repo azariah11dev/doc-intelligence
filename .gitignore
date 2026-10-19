@@ -33,6 +33,7 @@ playwright-report/
 !/doc_intelligence/backend/src/models/files/__init__.py
 /doc_intelligence/backend/src/models/tickets/*
 !/doc_intelligence/backend/src/models/tickets/__init__.py
+/doc_intelligence/backend/src/models/error_logs/*
 
 # Logs and local secrets
 *.log

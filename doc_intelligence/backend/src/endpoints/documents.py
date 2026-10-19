@@ -8,7 +8,12 @@ import uuid
 import os
 import re
 
-from src.schemas.file_magic_schema import detect_mime_type, validate_file_size, validate_file_type
+from src.schemas.file_magic_schema import (
+    MAX_FILE_SIZE,
+    detect_mime_type,
+    validate_file_size,
+    validate_file_type,
+)
 from src.models.documentdb import Document
 from src.models.deldocdb import DeletedVectors, DeletedDocument
 from src.services.model_dependencies.session_maker import get_async_session
@@ -17,8 +22,14 @@ from src.services.rag.semantic_chunker import SemanticChunker
 from src.schemas.document_schema import DelDoc
 from src.services.auth.jwt_dependency import get_current_user
 from src.models.usersdb import Users
+from src.services.utils.error_logger import generate_logs
 
-upload_router = APIRouter(prefix="/upload", tags=["upload"])
+
+upload_router = APIRouter(
+    prefix="/upload",
+    tags=["upload"],
+    dependencies=[Depends(get_current_user)],
+)
 
 def get_base_dir() -> Path:
     return Path(__file__).resolve().parent.parent / "models" / "files"
@@ -40,26 +51,36 @@ def recent_files():
         # Sort by modification time (newest first)
         all_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
 
-        # Return top 5 as strings
-        return [str(p) for p in all_files[:5]]
+        return [p.relative_to(base_dir).as_posix() for p in all_files[:5]]
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        generate_logs(error=e,endpoint="/upload/recent_files")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 
 @upload_router.get("/files")
-def get_files():
+async def get_files(session: AsyncSession = Depends(get_async_session)):
     try:
         base_dir = get_base_dir()
 
         if not base_dir.exists():
-            return {}
+            return {"files": [], "count": 0}
 
-        all_files = [
-            str(path)
-            for path in base_dir.rglob("*")
-            if path.is_file()
-        ]
+        documents = (
+            await session.execute(select(Document.id, Document.saved_filename))
+        ).all()
+        document_ids = {name: str(doc_id) for doc_id, name in documents}
+        all_files = []
+        for path in base_dir.rglob("*"):
+            if path.is_file():
+                relative_path = path.relative_to(base_dir).as_posix()
+                all_files.append(
+                    {
+                        "id": document_ids.get(path.name),
+                        "path": relative_path,
+                        "name": path.name,
+                    }
+                )
 
         return {
             "files": all_files,
@@ -67,7 +88,8 @@ def get_files():
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        generate_logs(error=e,endpoint="/upload/files")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
     
 @upload_router.get("/audit_trail")
@@ -92,7 +114,8 @@ async def retrieve_files(session: AsyncSession = Depends(get_async_session)):
         ]
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        generate_logs(error=e,endpoint="/upload/audit_trail")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 # ---------------------------------------------------------------------------------------
 # POST
@@ -165,6 +188,11 @@ async def get_versioned_path(
         }
 
     except Exception as e:
+        generate_logs(
+            error="Versioning failed for file '{file_name}' in collection '{collection_name}': {e}",
+            endpoint="/upload/documents"
+        )
+        
         raise VersioningError(
             f"Versioning failed for file '{file_name}' in collection '{collection_name}': {e}"
         ) from e
@@ -177,13 +205,18 @@ async def upload_document(
 ):
     try:
         # Read file contents
-        contents = await file.read()
+        if file.size is not None:
+            validate_file_size(file.size)
+        contents = await file.read(MAX_FILE_SIZE + 1)
         file_size = len(contents)
 
         # Validate size and type
         validate_file_size(file_size)
         magic_type = detect_mime_type(contents)
-        validate_file_type(magic_type, file.filename)
+        original_filename = Path(file.filename or "").name
+        if not original_filename:
+            raise ValueError("Invalid filename.")
+        validate_file_type(magic_type, original_filename)
 
         # IDs and collection
         doc_id = uuid.uuid4()
@@ -193,7 +226,7 @@ async def upload_document(
         saved_file = await get_versioned_path(
             document_id=doc_id,
             collection_name=collection_name,
-            file_name=file.filename,
+            file_name=original_filename,
             session=session,
         )
 
@@ -204,7 +237,7 @@ async def upload_document(
         # Create DB row first (so status can be updated by extractor/chunker)
         doc = Document(
             id=doc_id,
-            upload_filename=file.filename,
+            upload_filename=original_filename,
             saved_filename=saved_file["file_name"],
             file_type=magic_type,
             file_size=file_size,
@@ -248,7 +281,8 @@ async def upload_document(
         raise
     
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        generate_logs(error=e,endpoint="/upload/audit_trail")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 # ---------------------------------------------------------------------------------------
 # DELETE
@@ -265,7 +299,7 @@ async def document_deletion(
             raise HTTPException(status_code=403, detail="Not authorized.")
         
         # 1. Fetch document
-        stmt = select(Document).where(Document.file_path == data.file_path)
+        stmt = select(Document).where(Document.id == data.document_id)
         result = (await session.execute(stmt)).scalars().first()
 
         if not result:
@@ -292,7 +326,7 @@ async def document_deletion(
             saved_filename=saved_filename,
             file_path=file_path,
             collection_name=collection_name,
-            reason=f"User: {data.username}, Deletion reason: {data.reason}",
+            reason=f"User: {current_user.username}, Deletion reason: {data.reason}",
         )
 
         rem_doc = DeletedDocument(
@@ -301,7 +335,7 @@ async def document_deletion(
             saved_filename=saved_filename,
             file_path=file_path,
             collection_name=collection_name,
-            deleted_by=data.username,
+            deleted_by=current_user.username,
             reason=data.reason,
         )
 
@@ -312,21 +346,27 @@ async def document_deletion(
         await session.commit()
 
         # 5. Delete file from disk
-        if os.path.isfile(data.file_path):
-            os.remove(data.file_path)
+        if os.path.isfile(file_path):
+            os.remove(file_path)
         else:
             raise FileNotFoundError(f"No file at {file_path}")
 
         return {"status": "deleted", "id": str(id)}
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        generate_logs(error=e,endpoint="/upload/delete_document")
+        raise HTTPException(status_code=500, detail="Internal server error") from e
 
 # ---------------------------------------------------------------------------------------
 # dynamic: GET at the bottom
 #----------------------------------------------------------------------------------------
 @upload_router.get("/files/view/{filename}")
-def view_file(filename: str):
+def view_file(
+    filename: str,
+    current_user: Users = Depends(get_current_user),
+):
     base_dir = get_base_dir().resolve()
     if Path(filename).name != filename or filename in {".", ".."}:
         raise HTTPException(status_code=400, detail="Invalid filename")

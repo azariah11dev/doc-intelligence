@@ -1,6 +1,6 @@
 from pydantic import BaseModel
+from uuid import UUID
 
 class DelDoc(BaseModel):
-    file_path: str
-    username: str
+    document_id: UUID
     reason: str

@@ -44,12 +44,18 @@ Settings are read from `.env` (see `.env.example`).
 | `QDRANT_URL` | yes | Qdrant HTTP endpoint |
 | `OLLAMA_HOST` | for local LLMs | Ollama endpoint |
 | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` | optional | Only needed if you enable those providers |
+| `CORS_ORIGINS` | no | Comma-separated frontend origins allowed by CORS |
+| `ENABLED_PROVIDERS` | no | Comma-separated generation providers; defaults to `ollama` |
+| `ENABLED_MODELS` | no | Comma-separated `provider:model` allowlist, including rewrite models |
+| `LOGIN_RATE_LIMIT`, `REGISTER_RATE_LIMIT`, `ANSWER_RATE_LIMIT` | no | SlowAPI limits; defaults are 5/minute, 5/minute, and 10/minute |
 
 Never commit `.env`; it is git-ignored.
 
 ## Models
 
-Models download on first use, a few GB in total:
+The embedding, reranking, and sparse embedding models are loaded at backend
+startup and shared for the lifetime of that process. First startup downloads
+models if not already cached and can take a while:
 
 - Embeddings: `BAAI/bge-m3` (dense) plus a fastembed sparse model
 - Reranker: `BAAI/bge-reranker-base`
@@ -57,14 +63,15 @@ Models download on first use, a few GB in total:
 
 ## Create your first Admin
 
-Registration always creates a `User`, and only an Admin can promote others, so promote the first account in the database:
+Create the initial administrator once, using the database configured in `.env`:
 
 ```bash
-docker exec -it DocIntelligenceDB_Postgres psql -U postgres -d DocIntelligenceDB \
-  -c "UPDATE users SET role='Admin' WHERE username='<your username>';"
+uv run python -m src.bootstrap_admin admin admin@example.com
 ```
 
-Log out and back in so the UI picks up the new role. Admins can upload and delete documents, list users, and change roles.
+The command prompts for the password and refuses to run after an Admin already
+exists. Registration creates ordinary User accounts. Admins can review tickets,
+upload and delete documents, list users, and change roles.
 
 ## Running everything in Docker
 
@@ -72,7 +79,10 @@ Log out and back in so the UI picks up the new role. Admins can upload and delet
 docker compose up -d --build
 ```
 
-This also starts the `app` service on port 8000. In this mode the `.env.example` hostnames (`postgres`, `qdrant`) are correct, and the compose file sets the container's `OLLAMA_HOST` to `http://host.docker.internal:11435`, overriding the value in `.env`. If your Ollama listens on its default port 11434, change that line in `docker-compose.yml`.
+This also starts the `app` service on port 8000. In this mode the `.env.example`
+hostnames (`postgres`, `qdrant`) are correct. The Ollama default is
+`http://host.docker.internal:11434`; set `OLLAMA_HOST` in `.env` if your host
+uses another port.
 
 Useful Docker and psql commands are in `document/docker.txt` and `document/postgres.txt`.
 
@@ -84,19 +94,20 @@ Full schemas are in `/docs`. "Auth" shows what the code enforces today.
 |---|---|---|
 | Auth | `POST /auth/register`, `POST /auth/login` | none |
 | | `GET /auth/all_users`, `PUT /auth/assign_role`, `DELETE /auth/delete_user` | Admin |
-| Documents | `POST /upload/documents` (PDF, DOCX, TXT; max 10 MB) | none |
-| | `GET /upload/files`, `/upload/recent_files`, `/upload/audit_trail`, `/upload/files/view/{filename}` | none |
+| Documents | `POST /upload/documents` (PDF, DOCX, TXT; max 10 MB) | authenticated |
+| | `GET /upload/files`, `/upload/recent_files`, `/upload/audit_trail`, `/upload/files/view/{filename}` | authenticated |
 | | `DELETE /upload/delete_document` | Admin |
-| Chat | `POST /response_generation/answer` (streamed `text/plain`) | none |
-| | `GET /chat/conversations`, `/chat/conversation/{id}` | none |
-| Tickets | `POST /contact/ticket`, `POST /contact/`, `GET /contact/open_tickets`, `/all_tickets`, `PUT /contact/update_status` | none |
+| Chat | `POST /response_generation/answer` (streamed `text/plain`) | authenticated |
+| | `GET /chat/conversations`, `/chat/conversation/{id}` | authenticated; users see their own history, Admin can read any conversation |
+| Tickets | `POST /contact/ticket` | authenticated |
+| | `GET /contact/open_tickets`, `/all_tickets`, `PUT /contact/update_status`, ticket attachment view | Admin |
+| Contact | `POST /contact/` | public |
 
 `POST /response_generation/answer` takes:
 
 ```json
 {
   "question": "What does the contract say about termination?",
-  "username": "alex",
   "rewrite_model": "qwen2.5:3b",
   "generation_model": "qwen3.8:27b",
   "provider": "ollama",
@@ -104,7 +115,12 @@ Full schemas are in `/docs`. "Auth" shows what the code enforces today.
 }
 ```
 
-Set `rewrite_model` to `null` to skip query rewriting. `id` is an existing conversation ID, or `null` to start one. The stream is the answer text, then a `Sources: ...` line, then a final JSON chunk `{"meta": {"conversation_id": "..."}}` that the frontend strips out.
+Set `rewrite_model` to `null` to skip query rewriting. The authenticated
+username is taken from the token, not the request body. Providers and models
+must be included in `ENABLED_PROVIDERS` and `ENABLED_MODELS`. `id` is an
+existing conversation ID, or `null` to start one. The stream is the answer
+text, then a `Sources: ...` line, then a final JSON chunk
+`{"meta": {"conversation_id": "..."}}` that the frontend strips out.
 
 ## How the code is organized
 
@@ -140,6 +156,6 @@ The suite uses in-memory SQLite and needs no Postgres, Qdrant or Ollama. CI runs
 | Connection refused on port 5432 or 6333 | Containers are not running; check `docker ps` and run `docker compose up -d postgres qdrant` |
 | `could not translate host name "postgres"` | You are running on your machine but `.env` still uses Docker hostnames; switch to `localhost` (see Setup) |
 | `ImportError: failed to find libmagic` | Install `libmagic` (see Requirements) |
-| First upload or chat is very slow | Embedding and reranker models are downloading and loading; this happens on every request until models are loaded once at startup |
+| First startup is very slow | Embedding and reranker models are downloaded (if needed) and loaded once as the backend starts |
 | `docker compose` cannot find `Dockerfile` on Linux/macOS | The compose file says `Dockerfile` but the file is named `dockerfile`; set `dockerfile: dockerfile` in the `app` service |
 | Query rewrite or chat returns an Ollama error | Check `OLLAMA_HOST` and that the models are pulled (`ollama list`) |

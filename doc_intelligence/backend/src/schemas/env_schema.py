@@ -6,12 +6,10 @@ _env_path = Path(__file__).parent
 while not (_env_path / ".env").exists() and _env_path != _env_path.parent:
     _env_path = _env_path.parent
 
-print(f"Loading .env from: {_env_path / '.env'}")  # remove after confirming
-
 class Settings(BaseSettings):
-    SECRET_KEY: str | None = None
-    ALGORITHM: str | None = None
-    ACCESS_TOKEN_EXPIRE_MINUTES: int | None = None
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
 
     POSTGRES_USER: str | None = None
     POSTGRES_PASSWORD: str | None = None
@@ -24,6 +22,12 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
+    CORS_ORIGINS: str
+    ENABLED_PROVIDERS: str
+    ENABLED_MODELS: str
+    LOGIN_RATE_LIMIT: str
+    REGISTER_RATE_LIMIT: str
+    ANSWER_RATE_LIMIT: str
 
     class Config:
         env_file = str(_env_path / ".env")

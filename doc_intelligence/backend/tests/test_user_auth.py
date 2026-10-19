@@ -154,7 +154,7 @@ async def test_login_wrong_password(client, test_session):
     res = await client.post("/auth/login", json={"username": "wrongpass", "password": "incorrect"})
 
     assert res.status_code == 401
-    assert res.json()["detail"] == "Incorrect password."
+    assert res.json()["detail"] == "Invalid credentials"
 
 
 @pytest.mark.asyncio
@@ -162,7 +162,7 @@ async def test_login_user_not_exist(client):
     res = await client.post("/auth/login", json={"username": "ghost", "password": "whatever"})
 
     assert res.status_code == 401
-    assert res.json()["detail"] == "User does not exist."
+    assert res.json()["detail"] == "Invalid credentials"
 
 
 # -------------------------------------------------------------------

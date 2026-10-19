@@ -127,10 +127,10 @@ event loop. Ollama serves generation separately from the backend process.
 
 ## Current limitations
 
-- Retrieval searches a shared document collection; documents are not isolated
-  by user.
+- Document retrieval operates on a shared collection. User-specific retrieval filtering is planned
+ for a future release if the project evolves beyond a portfolio demonstration.
 - Sources identify files, not the exact supporting chunks, and the app does not
-  yet include retrieval evaluation or a confidence threshold.
+ yet include retrieval evaluation or a confidence threshold.
 - The chat UI currently connects to Ollama. OpenAI, Anthropic, and Gemini
   adapters exist, but are not enabled in the UI.
 - Model warmup increases backend startup time and memory use.

@@ -30,6 +30,12 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ALGORITHM: "HS256"
           ACCESS_TOKEN_EXPIRE_MINUTES: "30"
+          CORS_ORIGINS: "http://localhost:3000"
+          ENABLED_PROVIDERS: "ollama"
+          ENABLED_MODELS: "ollama:qwen3.8:27b,ollama:qwen2.5:3b"
+          LOGIN_RATE_LIMIT: "5/minute"
+          REGISTER_RATE_LIMIT: "5/minute"
+          ANSWER_RATE_LIMIT: "10/minute"
         working-directory: doc_intelligence/backend
         run: uv run pytest
 

@@ -1,100 +1,140 @@
 # Doc Intelligence
 
-Ask questions across your own documents and get streamed answers that list the files they came from.
+Doc Intelligence lets users upload PDF, DOCX, and TXT files, ask questions
+about their contents, and receive streamed answers with file-level sources.
 
-Upload a PDF, DOCX or TXT file → it is chunked and indexed → ask a question in chat → the most relevant chunks are retrieved, reranked and passed to an LLM.
-
-<!-- Add a screenshot or short GIF of the chat page here: docs/images/demo.gif -->
+The backend extracts and chunks documents, indexes them in Qdrant, retrieves
+and reranks relevant passages, and sends the resulting context to an LLM.
+PostgreSQL stores accounts, document audit records, conversations, and tickets.
 
 ## Features
 
-- **Ingestion** with file-type and size validation, versioned re-uploads (old vectors are removed), and an audit trail
-- **Hybrid retrieval**: dense + sparse vectors fused with Reciprocal Rank Fusion, then cross-encoder reranking
-- **Streaming answers** from a local Ollama model, with an optional query-rewrite step
-- **Conversation history**, JWT login, Admin/User roles, and a support-ticket workflow
-- **Provider adapters** for OpenAI, Anthropic and Gemini (currently disabled in the UI, see [Status](#status-and-limitations))
+- Validated document uploads, versioned re-uploads, and an audit trail
+- Hybrid dense and sparse retrieval, Reciprocal Rank Fusion, and cross-encoder
+  reranking
+- Streamed Ollama answers with optional query rewriting
+- JWT authentication, user-specific conversation history, and Admin/User roles
+- Support tickets with Admin review and attachment viewing
+- Shared model instances warmed during backend startup
+- Jest unit tests and Playwright browser tests
+
+## Requirements
+
+- Docker Desktop (or Docker Engine with Compose)
+- Python 3.13 and [uv](https://docs.astral.sh/uv/)
+- Node.js 20+ and npm
+- [Ollama](https://ollama.com) with the configured chat and rewrite models
 
 ## Quick start
 
-You need Docker, [uv](https://docs.astral.sh/uv/), Node 20+, and [Ollama](https://ollama.com).
+### Windows
 
-for unified run
-```bash
- .\runWindows.ps1
-```
-for seperate
+From the `doc_intelligence` directory, first create `backend/.env` from
+`backend/.env.example` and set a strong `SECRET_KEY` and database password.
+Then run:
 
-```bash
-# 1. Infrastructure and backend
-cd doc_intelligence/backend
-cp .env.example .env            # then edit it; see backend/README.md for host-mode values
-docker compose up -d postgres qdrant
-uv sync
-uv run python main.py           # API on http://localhost:8000
-
-# 2. Frontend (new terminal)
-cd doc_intelligence/frontend
-npm ci
-npm run dev                     # app on http://localhost:3000
-
-# 3. Models (new terminal)
-ollama pull qwen2.5:3b          # query rewriting
-ollama pull qwen3.8:27b         # default chat model (or change it in the frontend)
+```powershell
+.\runWindows.ps1
 ```
 
-Open http://localhost:3000, register an account, then promote it to Admin so you can upload and delete documents. The steps are in [backend/README.md](doc_intelligence/backend/README.md#create-your-first-admin).
+The script starts the backend, PostgreSQL, and Qdrant in Docker and the
+Next.js development server. The backend warms its embedding and reranking
+models during startup; the API may take several minutes to become ready on a
+first run.
 
-On Windows, `doc_intelligence/runWindows.ps1` starts the Docker services and the frontend together (run it from the `doc_intelligence` folder).
+### Start services separately
+
+1. Configure the backend:
+
+   ```powershell
+   cd doc_intelligence\backend
+   Copy-Item .env.example .env
+   ```
+
+   Edit `.env` before starting services. Keep the Docker service hostnames in
+   the example (`postgres`, `qdrant`) when running the backend in Docker. If
+   running the backend directly on your machine, use `localhost` for
+   `DATABASE_URL`, `QDRANT_URL`, and `OLLAMA_HOST`.
+
+2. Start the backend and data services. For Docker, from `backend`:
+
+   ```powershell
+   docker compose up -d --build
+   ```
+
+   Alternatively, start only PostgreSQL and Qdrant in Docker, then run the
+   backend on your machine:
+
+   ```powershell
+   docker compose up -d postgres qdrant
+   uv sync
+   uv run python main.py
+   ```
+
+3. In a second terminal, start the frontend:
+
+   ```powershell
+   cd doc_intelligence\frontend
+   Copy-Item .env.example .env.local
+   npm ci
+   npm run dev
+   ```
+
+4. Pull the Ollama models configured in `backend/.env` and
+   `frontend/src/app/(protected)/chat/page.tsx`. The defaults are:
+
+   ```powershell
+   ollama pull qwen2.5:3b
+   ollama pull qwen3.8:27b
+   ```
+
+   When the backend runs in Docker and Ollama runs on the host, set
+   `OLLAMA_HOST` to `http://host.docker.internal:<port>` (default port
+   `11434`). Do not use `127.0.0.1` for the host Ollama server from inside the
+   backend container.
+
+Open http://localhost:3000 and register a user. Registration creates a regular
+User account. Create the initial Admin using the command in the
+[backend guide](doc_intelligence/backend/document/README.md#create-your-first-admin).
 
 ## How it works
 
 ```mermaid
 flowchart LR
-  subgraph Ingest
-    U["Upload PDF / DOCX / TXT"] --> V["Validate type and size"] --> X["Extract text"] --> C["Chunk"] --> E["Embed (bge-m3 dense + sparse)"] --> Q[("Qdrant")]
-  end
-  subgraph Ask
-    Qn["Question"] --> R["Optional rewrite (small Ollama model)"] --> H["Hybrid search + RRF"] --> RR["Rerank (bge-reranker-base)"] --> L["LLM stream"] --> A["Answer + Sources line"]
-  end
+  U["Upload PDF / DOCX / TXT"] --> V["Validate type and size"] --> X["Extract text"] --> C["Chunk"] --> E["Dense and sparse embeddings"] --> Q[("Qdrant")]
+  Qn["Question"] --> R["Optional Ollama rewrite"] --> H["Hybrid search and RRF"] --> RR["Rerank"] --> L["LLM stream"] --> A["Answer and file sources"]
   Q --> H
 ```
 
-Qdrant holds the vectors. PostgreSQL holds users, document audit records, conversations and tickets.
+The embedding, reranker, and sparse embedding models are loaded once per
+backend process at startup. Retrieval and query rewriting run off the async
+event loop. Ollama serves generation separately from the backend process.
 
-## Repository layout
+## Configuration
 
-| Path | Contents |
+- Backend variables, including JWT, database, CORS, model allowlist, and rate
+  limits: [`backend/.env.example`](doc_intelligence/backend/.env.example).
+- Frontend API base URL: [`frontend/.env.example`](doc_intelligence/frontend/.env.example).
+- Never commit real `.env` or `.env.local` files.
+
+## Repository guides
+
+| Guide | Contents |
 |---|---|
-| [`doc_intelligence/backend`](doc_intelligence/backend/README.md) | FastAPI app, RAG pipeline, pytest suite, Docker Compose |
-| [`doc_intelligence/frontend`](doc_intelligence/frontend/README.md) | Next.js app, Jest and Playwright tests |
-| `.github/workflows/ci.yml` | Backend tests, Jest, Playwright, Docker image build |
+| [Backend guide](doc_intelligence/backend/document/README.md) | Backend setup, configuration, API authorization, models, Admin bootstrap, tests, and troubleshooting |
+| [Frontend guide](doc_intelligence/frontend/src/documents/README.md) | Frontend setup, routes, API authentication, models, and test commands |
+| [CI workflow](.github/workflows/ci.yml) | Backend tests, Jest, Playwright, and Docker image build |
 
-## Stack
+## Current limitations
 
-FastAPI · Next.js 16 / React 19 · Qdrant · PostgreSQL 16 · Sentence Transformers (`BAAI/bge-m3`, `BAAI/bge-reranker-base`) · fastembed · Ollama
-
-## Status and limitations
-
-This is a working demo and learning project, not a hardened product. Known gaps:
-
-- **Auth is partial.** Only admin routes check the JWT. Upload, file listing, chat, chat history and ticket routes are open, and the chat endpoint trusts the `username` in the request body.
-- **Performance.** The embedding and reranker models are loaded on every request instead of once at startup.
-- **Single shared collection.** Every user searches the same documents.
-- **Citations are file-level.** Answers end with a `Sources:` line naming files; they are not verified against the answer text, and there is no "not found in the documents" fallback.
-- **Other LLM providers.** OpenAI, Anthropic and Gemini are blocked in the chat UI and have not been verified end to end.
-- **No retrieval evaluation** yet.
-- The frontend has the API URL (`http://localhost:8000`) hardcoded.
-
-## Roadmap
-
-- [ ] Auth on every data route; derive the user from the token
-- [ ] Load models once at startup
-- [ ] Retrieval relevance threshold and a "not found" answer
-- [ ] Chunk-level citations
-- [ ] Retrieval evaluation set
-- [ ] API URL via environment variable
-- [ ] Rate limiting and caching
+- Retrieval searches a shared document collection; documents are not isolated
+  by user.
+- Sources identify files, not the exact supporting chunks, and the app does not
+  yet include retrieval evaluation or a confidence threshold.
+- The chat UI currently connects to Ollama. OpenAI, Anthropic, and Gemini
+  adapters exist, but are not enabled in the UI.
+- Model warmup increases backend startup time and memory use.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+MIT; see [LICENSE](LICENSE).

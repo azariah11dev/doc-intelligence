@@ -105,10 +105,16 @@ flowchart LR
   Qn["Question"] --> R["Optional Ollama rewrite"] --> H["Hybrid search and RRF"] --> RR["Rerank"] --> L["LLM stream"] --> A["Answer and file sources"]
   Q --> H
 ```
+# Terminology
+- Chunking: Breaks documents into retrieval units.
+- Dense + Sparse Embeddings: Supports semantic and keyword matching.
+- Hybrid Search + RRF: Combines retrieval methods for higher recall.
+- Reranking: Improves relevance before generation.
+- LLM Stream: Streams the final answer with file-level citations.
 
 The embedding, reranker, and sparse embedding models are loaded once per
 backend process at startup. Retrieval and query rewriting run off the async
-event loop. Ollama serves generation separately from the backend process.
+event loop. LLM serves generation separately from the backend process.
 
 ## Configuration
 

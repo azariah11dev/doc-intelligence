@@ -36,6 +36,7 @@ jobs:
           LOGIN_RATE_LIMIT: "5/minute"
           REGISTER_RATE_LIMIT: "5/minute"
           ANSWER_RATE_LIMIT: "10/minute"
+          OLLAMA_NUM_CTX: 12288
         working-directory: doc_intelligence/backend
         run: uv run pytest
 

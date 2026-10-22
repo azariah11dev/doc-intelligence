@@ -105,7 +105,7 @@ flowchart LR
   Qn["Question"] --> R["Optional Ollama rewrite"] --> H["Hybrid search and RRF"] --> RR["Rerank"] --> L["LLM stream"] --> A["Answer and file sources"]
   Q --> H
 ```
-# Terminology
+**Terminology**
 - Chunking: Breaks documents into retrieval units.
 - Dense + Sparse Embeddings: Supports semantic and keyword matching.
 - Hybrid Search + RRF: Combines retrieval methods for higher recall.

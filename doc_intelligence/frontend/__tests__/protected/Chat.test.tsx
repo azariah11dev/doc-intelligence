@@ -70,14 +70,14 @@ describe("Chat", () => {
     render(<Chat />);
 
     const accuracyButton = screen.getByRole("button", {
-      name: /accuracy on/i,
+      name: /accuracy off/i,
     });
 
     await user.click(accuracyButton);
 
     expect(
       screen.getByRole("button", {
-        name: /accuracy off/i,
+        name: /accuracy on/i,
       })
     ).toBeInTheDocument();
   });

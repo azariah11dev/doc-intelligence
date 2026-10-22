@@ -40,7 +40,7 @@ test.describe("Dashboard", () => {
     ).toBeVisible();
 
     await expect(
-      page.getByText("5")
+      page.getByText("5", { exact: true })
     ).toBeVisible();
   });
 

@@ -39,14 +39,14 @@ test.describe("Chat Page", () => {
     await page.goto("/chat");
 
     const accuracy = page.getByRole("button", {
-      name: /accuracy on/i,
+      name: /accuracy off/i,
     });
 
     await accuracy.click();
 
     await expect(
       page.getByRole("button", {
-        name: /accuracy off/i,
+        name: /accuracy on/i,
       })
     ).toBeVisible();
   });

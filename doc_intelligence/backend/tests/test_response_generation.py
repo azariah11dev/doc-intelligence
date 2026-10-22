@@ -155,3 +155,41 @@ async def test_response_generation_parameter_forwarding(monkeypatch, admin_heade
     assert captured["generation_model"] == "gpt"
     assert captured["provider"] == "openai"
     assert captured["id"] == id
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("extra, expected", [({}, False), ({"think": True}, True)])
+async def test_response_generation_think_forwarding(
+    monkeypatch, admin_headers, extra, expected
+):
+    captured = {}
+
+    class CaptureRAG:
+        async def answer(self, **kwargs):
+            captured.update(kwargs)
+            yield "ok"
+
+    monkeypatch.setattr(
+        "src.endpoints.response_generation.queryRetrieval",
+        lambda session: CaptureRAG(),
+    )
+    monkeypatch.setattr(settings, "ENABLED_PROVIDERS", "ollama")
+    monkeypatch.setattr(settings, "ENABLED_MODELS", "ollama:qwen")
+
+    payload = {
+        "question": "Test?",
+        "rewrite_model": None,
+        "generation_model": "qwen",
+        "provider": "ollama",
+        "id": str(uuid.uuid4()),
+        **extra,
+    }
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers=admin_headers,
+    ) as ac:
+        res = await ac.post("/response_generation/answer", json=payload)
+
+    assert res.status_code == 200, res.text
+    assert captured["think"] is expected

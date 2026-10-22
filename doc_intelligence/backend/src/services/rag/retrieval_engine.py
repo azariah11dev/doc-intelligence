@@ -8,6 +8,7 @@ from sqlalchemy import select
 import uuid
 from sqlalchemy.sql import func
 import json
+import time
 
 from qdrant_client.models import (
     Fusion,
@@ -24,6 +25,9 @@ from src.services.rag.model_registry import (
 )
 from src.models.user_querydb import Conversation, ChatMessage, MessageContext
 from src.schemas.env_schema import settings
+from src.services.rag.stream_markers import THINK_END, THINK_START
+from src.services.utils.error_logger import GenerationTiming, log_generation_time
+
 
 qdrant_url = settings.QDRANT_URL or os.getenv("QDRANT_URL")
 qdrant = QdrantClient(url=qdrant_url, check_compatibility=False)
@@ -206,6 +210,7 @@ class queryRetrieval:
         rewrite_model: str,
         generation_model: str,
         provider: Literal["ollama", "openai", "claude", "google"] = "ollama",
+        think: bool = False,
     ) -> AsyncIterator[str]:
         generation = GenerationModel(
             rewrite_model=rewrite_model,
@@ -214,6 +219,8 @@ class queryRetrieval:
 
         if not id:
             id = uuid.uuid4()
+
+        t_start = time.perf_counter()
 
         # 1. Rephrase
         if rewrite_model:
@@ -225,9 +232,11 @@ class queryRetrieval:
         else:
             rewritten_query = query
             rephrase = None
+        t_rewritten = time.perf_counter()
 
          # 2. Retrieve
         retrieved = await run_in_threadpool(self.retrieve, rewritten_query)
+        t_retrieved = time.perf_counter()
 
         # Single-line, grouped citation string — used both for the
         # response the user sees and the context that gets logged.
@@ -238,7 +247,7 @@ class queryRetrieval:
 
         # 3. Pick a token stream (sync iterator of str)
         if provider == "ollama":
-            token_iter = generation.generate_ollama_stream(prompt)
+            token_iter = generation.generate_ollama_stream(prompt, think=think)
         elif provider == "openai":
             token_iter = generation.generate_openai(prompt)
         elif provider == "claude":
@@ -250,9 +259,30 @@ class queryRetrieval:
 
         # 4. Stream tokens out, collecting them for the log
         chunks: list[str] = []
+        in_think = False
+        first_chunk_s = first_answer_s = None
+        t_generation = time.perf_counter()
         async for chunk in iterate_in_threadpool(token_iter):
-            chunks.append(chunk)
+            if first_chunk_s is None:
+                first_chunk_s = time.perf_counter() - t_generation
+            if chunk == THINK_START:
+                in_think = True
+            elif chunk == THINK_END:
+                in_think = False
+            elif not in_think:
+                if first_answer_s is None:
+                    first_answer_s = time.perf_counter() - t_generation
+                chunks.append(chunk)
             yield chunk
+
+        log_generation_time(GenerationTiming(
+            rewrite_s=t_rewritten - t_start,
+            retrieve_s=t_retrieved - t_rewritten,
+            first_chunk_s=first_chunk_s,
+            first_answer_s=first_answer_s,
+            total_s=time.perf_counter() - t_start,
+            think=think,
+        ))
 
         # 4b. Attach sources as a trailing line on the response itself,
         # not just in the DB log, so the citation is actually visible

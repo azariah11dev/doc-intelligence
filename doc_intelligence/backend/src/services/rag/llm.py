@@ -7,6 +7,7 @@ from ollama import Client
 from google.genai import Client as GeminiClient
 
 from src.schemas.env_schema import settings
+from src.services.rag.stream_markers import mark_thinking, message_field
 
 # -------------------------
 # Client setup
@@ -148,15 +149,22 @@ class GenerationModel:
     # -------------------------
     # Ollama (local, streaming)
     # -------------------------
-    def generate_ollama_stream(self, prompt: str) -> Iterator[str]:
+    def generate_ollama_stream(self, prompt: str, think: bool = False) -> Iterator[str]:
         stream = client_ollama.chat(
             model=self.generation_model,
             messages=[{"role": "user", "content": prompt}],
             stream=True,
+            think=think,
+            options={"num_ctx": settings.OLLAMA_NUM_CTX},
             keep_alive=300,  # keep model loaded for 5 minutes
         )
-        for chunk in stream:
-            yield chunk["message"]["content"]
+        yield from mark_thinking(
+            (
+                message_field(message_field(chunk, "message"), "thinking"),
+                message_field(message_field(chunk, "message"), "content"),
+            )
+            for chunk in stream
+        )
 
     def generate_ollama(self, prompt: str) -> str:
         return "".join(self.generate_ollama_stream(prompt))

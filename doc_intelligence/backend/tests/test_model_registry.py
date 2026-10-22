@@ -9,6 +9,7 @@ from src.services.rag import model_registry
 from src.services.rag import retrieval_engine
 from src.services.rag.retrieval_engine import queryRetrieval
 from src.services.rag.semantic_chunker import SemanticChunker
+from src.services.rag.stream_markers import THINK_END, THINK_START
 
 
 def test_model_instances_are_cached(monkeypatch):
@@ -64,6 +65,8 @@ def test_rag_service_constructors_do_not_load_models(monkeypatch):
 async def test_answer_runs_rewrite_and_retrieval_in_worker_threads(monkeypatch):
     main_thread = threading.get_ident()
     worker_threads = {}
+    logged = {}
+    timing = {}
 
     class FakeGenerationModel:
         def __init__(self, **kwargs):
@@ -76,8 +79,9 @@ async def test_answer_runs_rewrite_and_retrieval_in_worker_threads(monkeypatch):
         def build_prompt(self, **kwargs):
             return "prompt"
 
-        def generate_ollama_stream(self, prompt):
-            return iter(["answer"])
+        def generate_ollama_stream(self, prompt, think=False):
+            logged["think"] = think
+            return iter([THINK_START, "private reasoning", THINK_END, "answer"])
 
     monkeypatch.setattr(retrieval_engine, "GenerationModel", FakeGenerationModel)
 
@@ -88,22 +92,35 @@ async def test_answer_runs_rewrite_and_retrieval_in_worker_threads(monkeypatch):
         return []
 
     async def chat_logs(**kwargs):
-        pass
+        logged.update(kwargs)
 
     monkeypatch.setattr(service, "retrieve", retrieve)
     monkeypatch.setattr(service, "chat_logs", chat_logs)
+    monkeypatch.setattr(
+        retrieval_engine,
+        "log_generation_time",
+        lambda data: timing.update(data.model_dump()),
+    )
 
-    async for _ in service.answer(
-        id=None,
-        query="question",
-        username="user",
-        rewrite_model="rewrite",
-        generation_model="generation",
-    ):
-        pass
+    output = [
+        chunk
+        async for chunk in service.answer(
+            id=None,
+            query="question",
+            username="user",
+            rewrite_model="rewrite",
+            generation_model="generation",
+            think=True,
+        )
+    ]
 
     assert worker_threads["rewrite"] != main_thread
     assert worker_threads["retrieve"] != main_thread
+    assert logged["think"] is True
+    assert "".join(output).count("private reasoning") == 1
+    assert logged["response"] == "answer\nSources: none"
+    assert timing["think"] is True
+    assert isinstance(timing["retrieve_s"], float)
 
 
 @pytest.mark.asyncio

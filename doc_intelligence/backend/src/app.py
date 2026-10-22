@@ -32,11 +32,20 @@ async def create_tables() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print("creating tables")
     await create_tables()
+
+    print("loading embedding")
     await run_in_threadpool(get_embedding_model, "BAAI/bge-m3")
+
+    print("loading reranker")
     await run_in_threadpool(get_reranker_model, "BAAI/bge-reranker-base")
+
+    print("loading sparse")
     await run_in_threadpool(get_sparse_model, "Qdrant/bm25")
+
     yield
+
 
 app = FastAPI(title="Doc Intelligence", version="1.0", lifespan=lifespan)
 app.state.limiter = limiter

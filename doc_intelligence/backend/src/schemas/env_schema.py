@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     DATABASE_URL: Optional[str] = None
     QDRANT_URL: Optional[str] = None
     OLLAMA_HOST: Optional[str] = None
+    OLLAMA_NUM_CTX: int
 
     OPENAI_API_KEY: Optional[str] = None
     GEMINI_API_KEY: Optional[str] = None

@@ -5,9 +5,13 @@ import modelProvider from "../comps/model_provider.json" with { type: "json" };
 import {
     LightBulbIcon,
     ChatBubbleOvalLeftIcon,
+    EyeIcon
 } from "@heroicons/react/24/outline";
 
-type Message = { role: "user" | "assistant"; content: string };
+type Message = { role: "user" | "assistant"; content: string; thinking?: string };
+
+const THINK_START = "\u0002";
+const THINK_END = "\u0003";
 
 const model_provider: Record<string, string> = modelProvider;
 
@@ -20,11 +24,13 @@ export default function Chat() {
     const [loading, setLoading] = useState(false);
     const bottomRef = useRef<HTMLDivElement>(null);
     const [conversationId, setConversationId] = useState<string | null>(null);
-    const [accuracy, setAccuracy] = useState<"on" | "off">("on");
+    const [accuracy, setAccuracy] = useState<"on" | "off">("off");
+    const [deepReasoning, setDeepReasoning] = useState<"on" | "off">("off");
 
     // Accuracy mode on  -> query is rewritten by the small model first.
     // Accuracy mode off -> no rewrite (null).
-    const rewriteModel = accuracy === "on" ? REWRITE_MODEL : null;
+    const rewriteModel = accuracy === "off" ? null : REWRITE_MODEL;
+    const reasoning = deepReasoning === "off" ? false : true;
 
     async function loadConversation(convoId: string) {
         try {
@@ -74,8 +80,25 @@ export default function Chat() {
         });
     }
 
+    function appendThinking(text: string) {
+        setMessages((prev) => {
+            if (prev.length === 0) return prev;
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            updated[updated.length - 1] = {
+                ...last,
+                thinking: (last.thinking ?? "") + text,
+            };
+            return updated;
+        });
+    }
+
     const toggleAccuracy = () => {
         setAccuracy((prev) => (prev === "on" ? "off" : "on"));
+    };
+
+    const toggleDeepReasoning = () => {
+        setDeepReasoning((prev) => (prev === "off" ? "on" : "off"))
     };
 
     async function chatInfo() {
@@ -111,6 +134,7 @@ export default function Chat() {
                     generation_model: model,
                     provider: model_provider[model],
                     id: conversationId ?? null,
+                    think: reasoning,
                 }),
             });
 
@@ -120,6 +144,7 @@ export default function Chat() {
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
+            let inThink = false;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -138,8 +163,14 @@ export default function Chat() {
                 } catch {
                     // Not JSON -> normal streamed text
                 }
-                // Append streamed text normally
-                updateLastMessage((content) => content + chunk);
+                for (const part of chunk.split(/([\u0002\u0003])/)) {
+                    if (part === THINK_START) inThink = true;
+                    else if (part === THINK_END) inThink = false;
+                    else if (part) {
+                        if (inThink) appendThinking(part);
+                        else updateLastMessage((content) => content + part);
+                    }
+                }
             }
         } catch (err) {
             console.error("Error generating answer:", err);
@@ -161,6 +192,14 @@ export default function Chat() {
                             m.role === "user" ? "bg-gray-700" : "bg-gray-800"
                         }`}
                     >
+                        {m.thinking && (
+                            <details className="mb-2 text-sm opacity-70">
+                                <summary className="cursor-pointer">
+                                    {m.content ? "Reasoning" : "Thinking..."}
+                                </summary>
+                                <div className="mt-1 whitespace-pre-wrap">{m.thinking}</div>
+                            </details>
+                        )}
                         {m.content}
                     </div>
                 ))}
@@ -203,6 +242,29 @@ export default function Chat() {
                             </button>
                         </li>
 
+                        <li>
+                            <button
+                                type="button"
+                                onClick={toggleDeepReasoning}
+                                aria-pressed={deepReasoning === "on"}
+                                aria-label={`Deep reasoning ${deepReasoning}`}
+                                className="group relative p-2 rounded hover:bg-gray-800"
+                            >
+                                <LightBulbIcon
+                                    className={`w-5 h-5 transition-colors ${
+                                        deepReasoning === "off" ? "text-gray-600" : "text-yellow-400"
+                                    }`}
+                                />
+                                <span
+                                    className="absolute left-1/2 bottom-full mb-1 -translate-x-1/2 whitespace-nowrap
+                                    px-2 py-1 text-xs rounded bg-gray-900 text-[#c5c6c7]
+                                    opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                                >
+                                    Deep Reasoning {deepReasoning}
+                                </span>
+                            </button>
+                        </li>
+
                         {/* Accuracy toggle: `group` + `relative` let the tooltip show on hover */}
                         <li>
                             <button
@@ -212,9 +274,9 @@ export default function Chat() {
                                 aria-label={`Accuracy ${accuracy}`}
                                 className="group relative p-2 rounded hover:bg-gray-800"
                             >
-                                <LightBulbIcon
+                                <EyeIcon
                                     className={`w-5 h-5 transition-colors ${
-                                        accuracy === "on" ? "text-yellow-400" : "text-gray-600"
+                                        accuracy === "off" ? "text-gray-600" : "text-yellow-400"
                                     }`}
                                 />
                                 <span

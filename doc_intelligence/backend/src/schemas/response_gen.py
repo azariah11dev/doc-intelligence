@@ -8,3 +8,4 @@ class QueryRequest(BaseModel):
     generation_model: str = Field(min_length=1, max_length=100)
     provider: Literal["ollama", "openai", "claude", "google"]
     id: str | None = None
+    think: bool = False
